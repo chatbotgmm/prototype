@@ -1,0 +1,11 @@
+{
+  "source": "chatbotgmm/server backup/gmm-110-source-20261101 (0b0fb8b5) data/battle.yaml items",
+  "note": "GMM110 60종 전투(roster60-battle.ts)는 이 정의를 그대로 씀. clear(cleanse)는 60종 전투에 상태 이상이 없어 NO_STATUS_TO_CLEANSE로 항상 거절됨.",
+  "items": {
+    "potion": {"name": "치료약", "price": 60, "heal": 35, "desc": "지금 나와 있는 갈매미의 체력을 35% 회복해요"},
+    "big": {"name": "큰 치료약", "price": 150, "heal": 75, "desc": "지금 나와 있는 갈매미의 체력을 75% 회복해요"},
+    "clear": {"name": "정신 차리기 물", "price": 80, "cleanse": true, "desc": "지금 나와 있는 갈매미의 상태 이상(화상·빙결·잠·묶임·폭주)을 풀어요"},
+    "feather": {"name": "다시 출근 깃털", "price": 300, "revive": 50, "desc": "쓰러진 아군 하나를 체력 50%로 다시 일으켜요"}
+  },
+  "itemRules": {"perBattle": 0, "maxStack": 20}
+}

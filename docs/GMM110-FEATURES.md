@@ -30,7 +30,7 @@
 ## 3. 전투 (1:1 교대, 턴제)
 출처: `src/battle/roster60-five-combat.ts`, `roster60-rules.ts`, `src/roster60-battle.ts`, `battle-policy.json`
 - 행동 네 가지: **공격**(기술 선택) · **집중**(focus) · **교체** · **아이템**.
-- 편성: 출전 1마리 + 예비 최대 5마리(`battle/create`의 `reserveIds` 최대 5). 대전 편성은 1~6마리.
+- 편성: **1~3마리**(출전 1 + 예비 최대 2). 일반 전투·모험·스토리·대전 모두 같은 규칙이에요(`src/roster60-party-policy.ts`의 `single-active-party-3-v1`). API 입력 검사는 6마리까지 받지만, 이 규칙에서 다시 거절해요. 예전에 6마리로 시작한 모험만 그대로 유지해요.
 - 피해 = 위력 × 레벨 배율 × 내구 배율 → 그다음 속성 상성 처리
   - 레벨 배율 = 1 + 0.025 × (레벨 − 1)
   - 내구 배율 = 1 ÷ (1 + 내구 ÷ 50)
@@ -66,7 +66,7 @@
   - 흐름: 의뢰 수락 → 장면 대사 → 모험 출항에서 정해진 조우 승리 → 귀환 장면 → 완료.
   - 흑화 갈매미를 이기면 「어둠의 새우Gang」이 계정에 쌓여요(승리당 1, 데이터 키 `darkGangPerWin`. 앱 표시 문구는 `NativeRoster60StoryBattle.java`). 특정 의뢰는 지금까지 받은 누적량이 있어야 열려요(STORY_06: 2, STORY_12: 4, STORY_18: 6. 시험값, `mainLifetimeGates`).
   - 문서상 스토리 전투 27개의 개체 경험치는 원본 콘텐츠 값 0이고, 따로 시험 정책으로 연결했어요(`docs/STORY-UNIT-GROWTH-20261027.md`, `docs/XP-GRANT-CONNECTION-20261029.md`).
-- **탐험/모험**(`src/roster60-adventure.ts`): 1~6마리 출발 → 귀환 정산. 보상은 파티 수로 나누지 않아요.
+- **탐험/모험**(`src/roster60-adventure.ts`): 1~3마리 출발 → 귀환 정산. 보상은 파티 수로 나누지 않아요. 모험 전투에서 도망은 70% 확률이에요(`adventureEscapePolicy`, 서버 씨앗으로 결정).
 - **일반전**(`src/roster60-pvp.ts`): 실시간 매칭이고, 30초 뒤 AI와 붙어요.
   - 개체 경험치: 정상 승리 100%, 정상 패배 50%, 항복·도주 0. 출전 개체끼리 똑같이 나눠요(확정 — `CONFIRMED-POLICIES`).
   - 연결이 끊긴 뒤 돌아올 유예가 있어요(45초 + 45초. 시험값).
