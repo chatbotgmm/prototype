@@ -10,12 +10,21 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "data:check": "tsx tools/check-data.ts",
-    "parity:generate": "tsx tools/parity/generate.ts"
+    "parity:generate": "tsx tools/parity/generate.ts",
+    "dev": "tsx tools/dev-server.ts",
+    "server": "tsx server/src/main.ts",
+    "db:generate": "prisma generate --schema server/prisma/schema.prisma"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "fastify": "^5.6.1",
+    "prisma": "^6.16.2",
+    "zod": "^4.1.12"
   }
 }

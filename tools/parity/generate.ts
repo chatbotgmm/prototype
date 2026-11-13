@@ -27,9 +27,9 @@ const policy=JSON.parse(readFileSync(join(root,'data/test-profiles/five-stat-dev
 // 결정적 의사 난수(fixture 입력 고르기용, 원본 판정과 무관)
 let s=20261113;const rnd=()=>{s=(s*1103515245+12345)%2147483648;return s/2147483648;};
 const pick=<T>(a:T[])=>a[Math.floor(rnd()*a.length)];
-// 비교에 필요한 값만 남김(연출용 presentation·상대 정보 intel·방어 관측은 아직 옮기지 않아 뺌)
+// 비교에 필요한 값만 남김(연출용 presentation, 사건마다 붙는 intel 전후값은 뺌. 공개 intel은 단계마다 따로 기록)
 const lean=(f:any)=>({ownedId:f.ownedId,id:f.id,speciesId:f.speciesId,level:f.level,hp:f.hp,mp:f.mp});
-const leanEvent=(e:any)=>{const {presentation,intelBefore,intelAfter,defenseObservation,...rest}=e;return rest;};
+const leanEvent=(e:any)=>{const {presentation,intelBefore,intelAfter,...rest}=e;return rest;};
 const slim=(st:any)=>({turn:st.turn,outcome:st.outcome,surrendered:st.surrendered,decision:st.decision,participation:st.participation,
   fighters:st.fighters.map(lean),reserves:(st.reserves??[]).map(lean),lastRound:st.events.length?{...st.events.at(-1),events:st.events.at(-1).events.map(leanEvent)}:null,rounds:st.events.length});
 const tryCode=(fn:()=>unknown)=>{try{return {ok:fn()};}catch(e){return {error:(e as Error).message};}};
@@ -64,10 +64,19 @@ writeFileSync(join(dir,'schema.prisma'),readFileSync(join(root,'prisma/schema.pr
 execFileSync(process.execPath,[join(root,'node_modules/prisma/build/index.js'),'db','push','--schema',join(dir,'schema.prisma'),'--skip-generate'],{cwd:dir,env:{PATH:process.env.PATH??'',DATABASE_URL:url,PRISMA_HIDE_UPDATE_MESSAGE:'1'},stdio:'pipe'});
 const db=new PrismaClient({datasources:{db:{url}}});
 const battles:any[]=[];
+// 실제 서비스와 같은 조건: 전투 정책에 경험치 속도 조절(xpPacing)을 붙임(GMM110 roster60-routes.ts와 같음)
+const xpPacing=JSON.parse(readFileSync(join(root,'data/test-profiles/five-stat-device-test-v1/unit-xp-pacing-policy.json'),'utf8'));
+const paced={...policy,xpPacing};
+const pacing=await imp('src/progression/unit-xp-pacing.ts'),normal=await imp('src/progression/normal-xp.ts');
+pure.grant=[];pure.pacedWin=[];
+for(let i=0;i<300;i++){const u=pick(catalog.characters),rc=rnd()<.3?1:0,lv=1+Math.floor(rnd()*(rc?99:60)),start=rules.instanceGrowthCurve(u.growth,rc,u.reincarnationXpPolicy)[lv-1].totalXp,req=Math.floor(rnd()*20000);
+  const m={startingXp:String(start),growth:u.growth,reincarnation:rc,reincarnationXpPolicy:u.reincarnationXpPolicy};
+  pure.grant.push({id:u.id,rc,start,req,r:tryCode(()=>normal.normalXpGrant(m,req))});
+  const enemyLevel=1+Math.floor(rnd()*60);pure.pacedWin.push({id:u.id,rc,start,enemyLevel,r:tryCode(()=>pacing.pacedUnitWin(m,enemyLevel,xpPacing))});}
 try{
-  const svc=new battleMod.RosterBattle(db,()=>catalog,()=>policy);
+  const svc=new battleMod.RosterBattle(db,()=>catalog,()=>paced);
   const xpAt=(id:string,lv:number,rc:number)=>{const u=catalog.characters.find((c:any)=>c.id===id);return rules.instanceGrowthCurve(u.growth,rc,u.reincarnationXpPolicy)[lv-1].totalXp;};
-  for(let n=0;n<60;n++){
+  for(let n=0;n<45;n++){
     const player=await db.player.create({data:{identity:'parity:'+n,credits:0}});
     const size=1+Math.floor(rnd()*3),units:any[]=[];
     for(let k=0;k<size;k++){
@@ -77,35 +86,49 @@ try{
     }
     const items={potion:Math.floor(rnd()*3),big:Math.floor(rnd()*2),feather:Math.floor(rnd()*2),clear:1};
     for(const [itemId,count] of Object.entries(items))await db.playerItem.create({data:{playerId:player.id,itemId,count}});
-    const encounter=pick(policy.encounters.filter((e:any)=>e.mode!=='adventure'));
-    let r:any;
-    try{r=await svc.create(player.id,{requestId:'c'+n,ownedId:units[0].id,encounterId:encounter.id,reserveIds:units.slice(1).map(u=>u.id)});}
-    catch(e:any){battles.push({units,items,encounterId:encounter.id,createError:e.code??e.message});continue;}
-    const row0=await db.roster60Battle.findUnique({where:{id:r.battleId}});
-    const init=JSON.parse(row0.state);
-    const rec:any={units,items,encounterId:encounter.id,battleId:r.battleId,seed:row0.seed,initial:{mode:init.mode,decision:init.decision,fighters:init.fighters,reserves:init.reserves,participation:init.participation},steps:[]};
-    for(let t=0;t<60&&r.status==='ACTIVE';t++){
-      const st=JSON.parse((await db.roster60Battle.findUnique({where:{id:r.battleId}})).state),me=st.fighters[0];
-      const alive=(st.reserves??[]).filter((f:any)=>f.hp>0),dead=[me,...(st.reserves??[])].filter((f:any)=>f.hp<=0);
-      let action:any;const x=rnd();
-      if(me.hp<=0)action=alive.length?{kind:'switch',targetOwnedId:pick(alive).ownedId}:{kind:'attack'};
-      else if(x<.08&&alive.length)action={kind:'switch',targetOwnedId:pick(alive).ownedId};
-      else if(x<.14)action={kind:'item',itemId:pick(['potion','big','clear'])};
-      else if(x<.18&&dead.length)action={kind:'item',itemId:'feather',targetOwnedId:pick(dead).ownedId};
-      else if(x<.20)action={kind:'item',itemId:'potion',targetOwnedId:'not-mine'};
-      else if(x<.30)action={kind:'focus'};
-      else if(x<.33)action={kind:'skill',skillId:'nope'};
-      else if(x<.35&&t>3)action={kind:'escape'};
-      else if(x<.55)action={kind:'attack'};
-      else action=me.skills.length?{kind:'skill',skillId:pick(me.skills).id}:{kind:'attack'};
-      const before=await db.roster60Battle.findUnique({where:{id:r.battleId}});
-      let error:string|undefined;
-      try{r=await svc.action(player.id,{requestId:`a${n}-${t}`,battleId:r.battleId,revision:before.revision,action});}catch(e:any){error=e.code??e.message;}
-      const after=await db.roster60Battle.findUnique({where:{id:r.battleId}});
-      const inv=await db.playerItem.findMany({where:{playerId:player.id}});
-      rec.steps.push({action,error,state:error?null:slim(JSON.parse(after.state)),status:after.status,inventory:Object.fromEntries(inv.map((i:any)=>[i.itemId,i.count]))});
+    // 같은 플레이어가 두 판: 두 번째 판은 첫 판에서 기억한 방어 상성을 이어받음
+    const encounter=pick(paced.encounters.filter((e:any)=>e.mode!=='adventure'));
+    for(let round=0;round<2;round++){
+      const ownedNow=await Promise.all(units.map(u=>db.roster60Owned.findUnique({where:{id:u.id}})));
+      const startUnits=ownedNow.map((o:any)=>({id:o.id,speciesId:o.speciesId,totalXp:Number(o.totalXp),reincarnation:o.reincarnation}));
+      const startItems=Object.fromEntries((await db.playerItem.findMany({where:{playerId:player.id}})).map((i:any)=>[i.itemId,i.count]));
+      let r:any;
+      try{r=await svc.create(player.id,{requestId:`c${n}-${round}`,ownedId:units[0].id,encounterId:encounter.id,reserveIds:units.slice(1).map(u=>u.id)});}
+      catch(e:any){battles.push({player:n,round,units:startUnits,items:startItems,encounterId:encounter.id,createError:e.code??e.message});break;}
+      const row0=await db.roster60Battle.findUnique({where:{id:r.battleId}});
+      const init=JSON.parse(row0.state),snap=JSON.parse(row0.snapshot);
+      const rec:any={player:n,round,units:startUnits,items:startItems,encounterId:encounter.id,battleId:r.battleId,seed:row0.seed,
+        observedDefense:snap.observedDefense,unitXpPacing:snap.unitXpPacing,
+        initial:{mode:init.mode,decision:init.decision,fighters:init.fighters,reserves:init.reserves,participation:init.participation},
+        initialIntel:r.state.opponentIntel,steps:[]};
+      for(let t=0;t<60&&r.status==='ACTIVE';t++){
+        const st=JSON.parse((await db.roster60Battle.findUnique({where:{id:r.battleId}})).state),me=st.fighters[0];
+        const alive=(st.reserves??[]).filter((f:any)=>f.hp>0),dead=[me,...(st.reserves??[])].filter((f:any)=>f.hp<=0);
+        let action:any;const x=rnd();
+        if(me.hp<=0)action=alive.length?{kind:'switch',targetOwnedId:pick(alive).ownedId}:{kind:'attack'};
+        else if(x<.08&&alive.length)action={kind:'switch',targetOwnedId:pick(alive).ownedId};
+        else if(x<.14)action={kind:'item',itemId:pick(['potion','big','clear'])};
+        else if(x<.18&&dead.length)action={kind:'item',itemId:'feather',targetOwnedId:pick(dead).ownedId};
+        else if(x<.20)action={kind:'item',itemId:'potion',targetOwnedId:'not-mine'};
+        else if(x<.30)action={kind:'focus'};
+        else if(x<.33)action={kind:'skill',skillId:'nope'};
+        else if(x<.35&&t>3)action={kind:'escape'};
+        else if(x<.55)action={kind:'attack'};
+        else action=me.skills.length?{kind:'skill',skillId:pick(me.skills).id}:{kind:'attack'};
+        const before=await db.roster60Battle.findUnique({where:{id:r.battleId}});
+        let error:string|undefined;
+        try{r=await svc.action(player.id,{requestId:`a${n}-${round}-${t}`,battleId:r.battleId,revision:before.revision,action});}catch(e:any){error=e.code??e.message;}
+        const after=await db.roster60Battle.findUnique({where:{id:r.battleId}});
+        const inv=await db.playerItem.findMany({where:{playerId:player.id}});
+        rec.steps.push({action,error,state:error?null:slim(JSON.parse(after.state)),intel:error?null:r.state.opponentIntel,publicEnemy:error?null:r.state.fighters[1],status:after.status,inventory:Object.fromEntries(inv.map((i:any)=>[i.itemId,i.count]))});
+      }
+      const fin=await db.roster60Battle.findUnique({where:{id:r.battleId}});
+      const s=await svc.settle(player.id,{requestId:`s${n}-${round}`,battleId:r.battleId,revision:fin.revision});
+      rec.settlement=s.settlement;
+      rec.ownedAfter=(await Promise.all(units.map(u=>db.roster60Owned.findUnique({where:{id:u.id}})))).map((o:any)=>({id:o.id,totalXp:Number(o.totalXp),status:o.status}));
+      rec.observedAfter=(await db.roster60ObservedDefense.findMany({where:{playerId:player.id},orderBy:[{speciesId:'asc'},{element:'asc'}]})).map((o:any)=>({speciesId:o.speciesId,profileKey:o.profileKey,element:o.element,reaction:o.reaction}));
+      battles.push(rec);
     }
-    battles.push(rec);
   }
 }finally{await db.$disconnect();rmSync(dir,{recursive:true,force:true});}
 writeFileSync(outFile,JSON.stringify({source:'chatbotgmm/server backup/gmm-110-source-20261101 (0b0fb8b5)',generatedAt:new Date().toISOString(),pure,battles}));

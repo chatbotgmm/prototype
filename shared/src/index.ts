@@ -3,3 +3,5 @@ export * from './rules.js';
 export * from './combat.js';
 export * from './catalog.js';
 export * from './battle.js';
+export * from './xp.js';
+export * from './intel.js';

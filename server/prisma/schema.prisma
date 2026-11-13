@@ -1,0 +1,114 @@
+// 새 서버 DB. GMM110의 60종(Roster60*) 모델만 정리해서 옮김. 예전 체계(수비대·챗봇·예전 대전) 모델은 없음.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id        String   @id @default(uuid())
+  identity  String   @unique // 시제품: "test:<이름>"만 로그인 가능
+  nickname  String?
+  isTest    Boolean  @default(true)
+  credits   Int      @default(0) // 지원서(모집 재화)
+  revision  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  loginCodes LoginCode[]
+  units      Owned[]
+  items      PlayerItem[]
+  party      Party?
+  battles    Battle[]
+  receipts   Receipt[]
+  observed   ObservedDefense[]
+}
+
+model LoginCode {
+  code      String    @id // 6자리, 한 번만 사용
+  playerId  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  player    Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 보유 개체. totalXp는 지금 성장 주기(환생 뒤 0부터)의 누적 경험치.
+model Owned {
+  id                   String   @id @default(uuid())
+  playerId             String
+  speciesId            String
+  totalXp              BigInt   @default(0)
+  reincarnation        Int      @default(0)
+  status               String   @default("AVAILABLE") // AVAILABLE | BATTLE | ADVENTURE
+  locked               Boolean  @default(false)
+  source               String // 획득 경로(같은 경로로 두 번 지급하지 않게)
+  skillInheritanceJson String? // 조합으로 물려받은 기술 한 칸
+  createdAt            DateTime @default(now())
+  player               Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, source])
+  @@index([playerId, speciesId])
+}
+
+model PlayerItem {
+  playerId String
+  itemId   String
+  count    Int    @default(0)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, itemId])
+}
+
+// 기본 편성(1~3마리, ownedId JSON 배열). 전투를 만들 때는 요청에 담긴 편성을 씀.
+model Party {
+  playerId  String   @id
+  ownedIds  String
+  updatedAt DateTime @updatedAt
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model Battle {
+  id         String   @id
+  playerId   String
+  ownedId    String // 처음 출전한 개체
+  revision   Int      @default(0)
+  status     String   @default("ACTIVE") // ACTIVE | FINISHED | SETTLED
+  seed       String // 서버 비밀 씨앗. 응답에 넣지 않음
+  snapshot   String // 만들 때 고정한 정책·조우·경험치 계획·관측 스냅샷
+  state      String
+  settlement String?
+  createdAt  DateTime @default(now())
+  player     Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, status])
+}
+
+// 같은 requestId로 다시 보낸 요청에 처음 결과를 돌려주기 위한 영수증
+model Receipt {
+  playerId    String
+  scope       String
+  requestId   String
+  fingerprint String
+  result      String
+  createdAt   DateTime @default(now())
+  player      Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, scope, requestId])
+}
+
+// 한 번 맞혀 본 종의 방어 반응(플레이어별)
+model ObservedDefense {
+  playerId        String
+  speciesId       String
+  profileKey      String
+  element         String
+  reaction        String
+  firstObservedAt DateTime @default(now())
+  lastObservedAt  DateTime @updatedAt
+  player          Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, speciesId, profileKey, element])
+  @@index([playerId, speciesId])
+}

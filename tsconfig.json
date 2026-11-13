@@ -4,6 +4,6 @@
     "strict": true, "noEmit": true, "skipLibCheck": true, "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["shared/**/*.ts", "tools/**/*.ts"],
+  "include": ["shared/**/*.ts", "server/**/*.ts", "tools/**/*.ts"],
   "exclude": ["tools/parity/generate.ts"]
 }

@@ -1,12 +1,13 @@
 // 60종 PvE 전투 한 턴 처리(순수 함수). DB·네트워크·아이템 차감은 서버가 맡는다.
 // 출처: GMM110 src/roster60-battle.ts RosterBattle.action()의 계산 부분 (커밋 0b0fb8b5).
 // 원본은 계산과 DB 쓰기가 한 함수에 섞여 있었다. 여기서는 계산만 떼어 냈고, 순서·수식·오류 코드는 같다.
-// 아직 옮기지 않은 것: 상대 방어 관측(observed defense)·상대 정보 공개(opponent intel), 연출용 presentation 스냅샷.
+// 방어 관측은 ctx.defense를 넘길 때만 기록(intel.ts). 아직 옮기지 않은 것: 연출용 presentation 스냅샷(화면이 사건으로 직접 그림).
 import {fail} from './errors.js';
 import {sha256,hmacHex} from './hash.js';
 import {focusMp,spendMp} from './rules.js';
 import {fiveStatAttack,decideTurnOrder,reuseTurnOrder,validateFiveCombatPolicy,type FiveCombatPolicy,type TurnOrderDecision} from './combat.js';
-import type {Fighter,Skill} from './catalog.js';
+import type {Catalog,Fighter,Skill} from './catalog.js';
+import {battleKnowledge,resolvedDefenseObservation,addDefenseObservation,type DefenseObservation,type DefenseSnapshot} from './intel.js';
 
 export type BattleMode='story'|'duel'|'adventure';
 export type Encounter={id:string;speciesId:string;level:number;tutorial:boolean;winXp:number;lossXp:number;mode?:BattleMode;enemySpeciesIds?:string[];fixedEnemy?:boolean};
@@ -18,7 +19,7 @@ export type BattleEvent=
   |{actor:'self';kind:'switch'|'forced-switch';from?:string;to?:string}
   |{actor:'self';kind:'item';itemId:string;targetOwnedId?:string;recovered:number}
   |{actor:'self'|'enemy';kind:'focus';recovered:number}
-  |({actor:'self'|'enemy';kind:'skill';skillId:string}&ReturnType<typeof fiveStatAttack>);
+  |({actor:'self'|'enemy';kind:'skill';skillId:string;defenseObservation?:DefenseObservation}&ReturnType<typeof fiveStatAttack>);
 export type Round={turn:number;decision?:TurnOrderDecision;events:BattleEvent[]};
 export type Outcome='win'|'loss'|'draw'|'escaped';
 export type BattleState={
@@ -29,8 +30,10 @@ export type BattleState={
 };
 export type TurnContext={policy:BattlePolicy;items:Record<string,ItemDefinition>;
   /** 서버가 확인한 보유 수량. 0이면 ITEM_UNAVAILABLE. */
-  itemCount:(itemId:string)=>number};
-export type TurnResult={state:BattleState;consumedItem?:string;finished:boolean};
+  itemCount:(itemId:string)=>number;
+  /** 방어 관측(선택). 없으면 관측을 기록하지 않음. */
+  defense?:{snapshot?:DefenseSnapshot;catalog:Catalog|null}};
+export type TurnResult={state:BattleState;consumedItem?:string;finished:boolean;observations:DefenseObservation[]};
 
 // 모험 전투 도망 성공률 70% (GMM110 adventureEscapePolicy)
 export const adventureEscapePolicy=Object.freeze({version:'adventure-escape-70-v1',successPercent:70});
@@ -90,7 +93,7 @@ export function applyAction(input:BattleState,action:BattleAction,ctx:TurnContex
     if(!adventure||escaped){
       state.surrendered=!adventure;state.outcome=adventure?'escaped':'loss';
       state.rounds.push({turn:state.turn,events:[{actor:'self',kind:adventure?'escape-success':'surrender'}]});
-      return {state,finished:true};
+      return {state,finished:true,observations:[]};
     }
     actionConsumed=true;events.push({actor:'self',kind:'escape-failed'});
   }
@@ -103,7 +106,7 @@ export function applyAction(input:BattleState,action:BattleAction,ctx:TurnContex
     state.participation.push({ownedId:state.fighters[0].ownedId!,kind:forced?'forced-switch':'switch',turn:state.turn});
     events.push({actor:'self',kind:forced?'forced-switch':'switch',from:outgoing.ownedId,to:state.fighters[0].ownedId});
     // 쓰러져서 바꾸는 교체는 턴을 쓰지 않음: 순서만 다시 정하고 끝
-    if(forced){state.decision=order(state);state.rounds.push({turn:state.turn,events});return {state,finished:false};}
+    if(forced){state.decision=order(state);state.rounds.push({turn:state.turn,events});return {state,finished:false,observations:[]};}
   }
   if(action.kind==='item'){
     const itemId=action.itemId??'',it=Object.prototype.hasOwnProperty.call(ctx.items,itemId)?ctx.items[itemId]:null;
@@ -127,6 +130,8 @@ export function applyAction(input:BattleState,action:BattleAction,ctx:TurnContex
   if(!actionConsumed&&action.kind!=='focus'&&!playerSkill)fail('SKILL_NOT_EQUIPPED');
   if(playerSkill&&playerSkill.mpCost>self.mp)fail('INSUFFICIENT_MP');
   const enemySkill=chooseEnemySkill(self,enemy,ctx.policy);
+  const observations:DefenseObservation[]=[];
+  const knowledge=ctx.defense?battleKnowledge(ctx.defense.snapshot,state.rounds,'self'):undefined;
   const decision=reuseTurnOrder(state.decision,state.battleId,state.turn);
   for(const who of decision.order as ('self'|'enemy')[]){
     if(who==='self'&&actionConsumed)continue;
@@ -137,10 +142,12 @@ export function applyAction(input:BattleState,action:BattleAction,ctx:TurnContex
     actor.mp=spendMp(actor.mp,skill.mpCost);
     const hit=fiveStatAttack({power:skill.power,level:actor.level,durability:target.stats.durability,suitability:actor.suitability[skill.element],defense:target.defense[skill.element],attackerHp:actor.hp,defenderHp:target.hp},ctx.policy.calculation,(base,fit)=>base*fit);
     if(hit.target==='attacker')actor.hp-=hit.damage;else target.hp-=hit.damage;
-    events.push({actor:who,kind:'skill',skillId:skill.id,...hit});
+    const defenseObservation=who==='self'&&ctx.defense?resolvedDefenseObservation(target,skill.element,hit,'self',ctx.defense.snapshot,ctx.defense.catalog,knowledge):null;
+    if(defenseObservation){observations.push(defenseObservation);addDefenseObservation(knowledge!,defenseObservation,ctx.defense!.snapshot);}
+    events.push({actor:who,kind:'skill',skillId:skill.id,...hit,...(defenseObservation?{defenseObservation}:{})});
   }
   state.rounds.push({turn:state.turn,decision,events});state.turn++;
   state.outcome=self.hp<=0&&!state.reserves.some(f=>f.hp>0)?'loss':enemy.hp<=0?'win':state.turn>=ctx.policy.maxRounds?'draw':null;
   if(!state.outcome)state.decision=order(state);
-  return {state,consumedItem,finished:!!state.outcome};
+  return {state,consumedItem,finished:!!state.outcome,observations};
 }
