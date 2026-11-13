@@ -1,0 +1,68 @@
+{
+ "button_attack": {
+  "file": "ui/button_attack.webp",
+  "width": 722,
+  "height": 254,
+  "slice": {
+   "left": 72,
+   "right": 72,
+   "top": 72,
+   "bottom": 72
+  }
+ },
+ "button_item": {
+  "file": "ui/button_item.webp",
+  "width": 721,
+  "height": 254,
+  "slice": {
+   "left": 72,
+   "right": 72,
+   "top": 72,
+   "bottom": 72
+  }
+ },
+ "button_surrender": {
+  "file": "ui/button_surrender.webp",
+  "width": 721,
+  "height": 250,
+  "slice": {
+   "left": 72,
+   "right": 72,
+   "top": 72,
+   "bottom": 72
+  }
+ },
+ "button_switch": {
+  "file": "ui/button_switch.webp",
+  "width": 721,
+  "height": 250,
+  "slice": {
+   "left": 72,
+   "right": 72,
+   "top": 72,
+   "bottom": 72
+  }
+ },
+ "panel_command": {
+  "file": "ui/panel_command.webp",
+  "width": 1010,
+  "height": 1383,
+  "slice": {
+   "left": 75,
+   "right": 75,
+   "top": 75,
+   "bottom": 75
+  }
+ },
+ "panel_hp": {
+  "file": "ui/panel_hp.webp",
+  "width": 721,
+  "height": 248,
+  "slice": {
+   "left": 46,
+   "right": 46,
+   "top": 46,
+   "bottom": 46
+  }
+ }
+}

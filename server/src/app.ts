@@ -8,6 +8,7 @@ import {sessionSigner,rawSession,COOKIE,SESSION_DAYS} from './auth.js';
 import {ApiError,apiFail} from './errors.js';
 import {BattleService,isValidParty,partyPolicy} from './battle-service.js';
 import {serial} from './receipts.js';
+import {registerStatic} from './static.js';
 
 export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;now?:()=>number};
 export async function buildApp(db:PrismaClient,opt:AppOptions){
@@ -33,6 +34,7 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
   const route=(method:'GET'|'POST',path:string,run:(id:string,req:FastifyRequest,reply:FastifyReply)=>Promise<unknown>)=>
     app.route({method,url:api+path,handler:async(req,reply)=>{reply.header('Cache-Control','no-store');return run(await who(req),req,reply);}});
 
+  registerStatic(app,opt.root,base);
   app.get(`${api}/health`,async()=>({ok:true,catalog:content.catalog.version,testBaseline:content.catalog.productionBalanceApproved===false}));
 
   // ── 계정

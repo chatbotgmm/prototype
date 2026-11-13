@@ -1,0 +1,558 @@
+{
+ "source": "GMM110 native/village-loop-v2/manifest.json (layered-loop-v7-20261031)",
+ "assets": {
+  "recruit": {
+   "file": "village/recruit.webp",
+   "width": 1024,
+   "height": 642,
+   "source": "art/gpt/village-v7-20261031/runtime/recruit-v7.png"
+  },
+  "hideout": {
+   "file": "village/hideout.webp",
+   "width": 1024,
+   "height": 819,
+   "source": "art/gpt/village-v7-20261031/runtime/hideout-v7.png"
+  },
+  "mailbox": {
+   "file": "village/mailbox.webp",
+   "width": 792,
+   "height": 1024,
+   "source": "art/gpt/village-npc-20261027/mailbox.png"
+  },
+  "market": {
+   "file": "village/market.webp",
+   "width": 1024,
+   "height": 904,
+   "source": "art/gpt/village-districts-20261028/market-market.png"
+  },
+  "harbor": {
+   "file": "village/harbor.webp",
+   "width": 987,
+   "height": 1024,
+   "source": "art/gpt/village-districts-20261028/harbor-play.png"
+  },
+  "training": {
+   "file": "village/training.webp",
+   "width": 1024,
+   "height": 699,
+   "source": "art/gpt/village-layered-20261028/layered-training-v3.png"
+  },
+  "blacksmith": {
+   "file": "village/blacksmith.webp",
+   "width": 1024,
+   "height": 843,
+   "source": "art/gpt/village-npc-20261027/blacksmith.png"
+  },
+  "merchant": {
+   "file": "village/merchant.webp",
+   "width": 778,
+   "height": 1024,
+   "source": "art/gpt/village-layered-20261028/layered-merchant-grounded-v5.png"
+  },
+  "librarian": {
+   "file": "village/librarian.webp",
+   "width": 510,
+   "height": 1024,
+   "source": "art/gpt/village-npc-20261027/librarian.png"
+  },
+  "patrol": {
+   "file": "village/patrol.webp",
+   "width": 1024,
+   "height": 945,
+   "source": "art/gpt/village-companions-20261027/patrol.png"
+  },
+  "market-forge": {
+   "file": "village/market-forge.webp",
+   "width": 1024,
+   "height": 810,
+   "source": "art/gpt/village-districts-20261028/market-forge.png"
+  },
+  "layered-sky": {
+   "file": "village/layered-sky.webp",
+   "width": 1600,
+   "height": 533,
+   "source": "art/gpt/village-layered-20261028/layered-sky.png"
+  },
+  "layered-patrol": {
+   "file": "village/layered-patrol.webp",
+   "width": 1600,
+   "height": 534,
+   "source": "art/gpt/village-v7-20261031/runtime/layered-patrol-v7.png"
+  },
+  "layered-approved": {
+   "file": "village/layered-approved.webp",
+   "width": 1600,
+   "height": 535,
+   "source": "art/gpt/village-v7-20261031/runtime/layered-approved-v7-seam-r5.png"
+  },
+  "layered-market": {
+   "file": "village/layered-market.webp",
+   "width": 1600,
+   "height": 533,
+   "source": "art/gpt/village-v7-20261031/runtime/layered-market-v7.png"
+  },
+  "layered-join-patrol-approved": {
+   "file": "village/layered-join-patrol-approved.webp",
+   "width": 1254,
+   "height": 1254,
+   "source": "art/gpt/village-v7-20261031/runtime/layered-join-patrol-approved-v7.png"
+  },
+  "layered-join-approved-market": {
+   "file": "village/layered-join-approved-market.webp",
+   "width": 1254,
+   "height": 1254,
+   "source": "art/gpt/village-layered-20261028/layered-join-approved-market-v5.png"
+  },
+  "layered-join-market-patrol-wrap": {
+   "file": "village/layered-join-market-patrol-wrap.webp",
+   "width": 1254,
+   "height": 1254,
+   "source": "art/gpt/village-v7-20261031/runtime/layered-join-market-patrol-wrap-v7.png"
+  },
+  "layered-quay": {
+   "file": "village/layered-quay.webp",
+   "width": 1600,
+   "height": 535,
+   "source": "art/gpt/village-layered-20261028/layered-quay-v5.png"
+  },
+  "archive": {
+   "file": "village/archive.webp",
+   "width": 824,
+   "height": 585,
+   "source": "art/gpt/village-layered-20261028/layered-library.png"
+  },
+  "companions-shadows": {
+   "file": "village/companions-shadows.webp",
+   "width": 1024,
+   "height": 683,
+   "source": "art/gpt/village-companions-20261027/shadows.png"
+  },
+  "statue-stage-1": {
+   "file": "village/statue-stage-1.webp",
+   "width": 683,
+   "height": 1024,
+   "source": "art/gpt/statue-canonical-stages-20261027/stage-1.png"
+  },
+  "statue-stage-2": {
+   "file": "village/statue-stage-2.webp",
+   "width": 683,
+   "height": 1024,
+   "source": "art/gpt/statue-canonical-stages-20261027/stage-2.png"
+  },
+  "statue-stage-3": {
+   "file": "village/statue-stage-3.webp",
+   "width": 683,
+   "height": 1024,
+   "source": "art/gpt/statue-canonical-stages-20261027/stage-3.png"
+  },
+  "statue-stage-4": {
+   "file": "village/statue-stage-4.webp",
+   "width": 683,
+   "height": 1024,
+   "source": "art/gpt/statue-canonical-stages-20261027/stage-4.png"
+  },
+  "statue-stage-5": {
+   "file": "village/statue-stage-5.webp",
+   "width": 683,
+   "height": 1024,
+   "source": "art/gpt/statue-canonical-stages-20261027/stage-5.png"
+  }
+ },
+ "worldUnits": 8,
+ "districts": [
+  {
+   "id": "companions",
+   "title": "동료의 거리",
+   "copy": "새로운 인연과 우리 팀의 시작점",
+   "nav": "모집 · 팀",
+   "x": 0
+  },
+  {
+   "id": "memory",
+   "title": "기억의 정원",
+   "copy": "모은 이야기와 도착한 소식을 만나는 곳",
+   "nav": "도감 · 우편",
+   "x": 2
+  },
+  {
+   "id": "harbor",
+   "title": "푸른 출항길",
+   "copy": "탐험과 대결, 모든 모험이 시작되는 바다",
+   "nav": "플레이",
+   "x": 4
+  },
+  {
+   "id": "market",
+   "title": "바람의 시장",
+   "copy": "모험에 필요한 작은 준비와 새로운 발견",
+   "nav": "시장",
+   "x": 6
+  }
+ ],
+ "buildings": [
+  {
+   "id": "recruit",
+   "name": "방범대 지원소",
+   "sub": "새 동료 만나기",
+   "asset": "recruit",
+   "x": 0.87,
+   "width": 0.8299045599151644,
+   "baseline": 0.89,
+   "menu": [
+    "동료 모집"
+   ],
+   "actionIds": [
+    "recruit"
+   ],
+   "heightRatio": 0.52,
+   "topClearanceDp": 24,
+   "behindTerrace": false
+  },
+  {
+   "id": "hideout",
+   "name": "방범대 아지트",
+   "sub": "우리 팀의 쉼터",
+   "asset": "hideout",
+   "x": 1.7,
+   "width": 0.7501483679525223,
+   "baseline": 0.89,
+   "menu": [
+    "방범대 편성"
+   ],
+   "actionIds": [
+    "party"
+   ],
+   "heightRatio": 0.6,
+   "topClearanceDp": 24,
+   "behindTerrace": false
+  },
+  {
+   "id": "archive",
+   "name": "기록소",
+   "sub": "도감 · 조합",
+   "asset": "archive",
+   "x": 3.802548748656533,
+   "width": 0.7747008547008548,
+   "baseline": 0.8314917127071824,
+   "menu": [
+    "도감",
+    "조합"
+   ],
+   "actionIds": [
+    "collection",
+    "craft"
+   ],
+   "heightRatio": 0.55,
+   "topClearanceDp": 24,
+   "behindTerrace": true
+  },
+  {
+   "id": "mailbox",
+   "name": "우편함",
+   "sub": "우편 · 이벤트 · 소식",
+   "asset": "mailbox",
+   "x": 3.0,
+   "width": 0.12,
+   "baseline": 0.88,
+   "menu": [
+    "우편",
+    "이벤트 소식",
+    "공지사항"
+   ],
+   "actionIds": [
+    "mail",
+    "events",
+    "notices"
+   ],
+   "heightRatio": 0.16,
+   "topClearanceDp": 24,
+   "behindTerrace": false
+  },
+  {
+   "id": "harbor",
+   "name": "선착장",
+   "sub": "탐험 · 외부 출항",
+   "asset": "harbor",
+   "x": 5.291666666666666,
+   "width": 0.495,
+   "baseline": 0.89,
+   "menu": [
+    "탐험",
+    "스토리 외부 출항"
+   ],
+   "actionIds": [
+    "explore",
+    "departure"
+   ],
+   "heightRatio": 0.5136245819397994,
+   "behindTerrace": true,
+   "topClearanceDp": 24
+  },
+  {
+   "id": "market",
+   "name": "시장",
+   "sub": "아이템 · 재화",
+   "asset": "market",
+   "x": 6.203333333333333,
+   "width": 0.6749999999999999,
+   "baseline": 0.89,
+   "menu": [
+    "아이템",
+    "유료 재화 관리"
+   ],
+   "actionIds": [
+    "items",
+    "currency"
+   ],
+   "heightRatio": 0.595721476510067,
+   "topClearanceDp": 24,
+   "behindTerrace": false
+  },
+  {
+   "id": "training",
+   "name": "전투연습장",
+   "sub": "일반전 · 랭크전",
+   "asset": "training",
+   "x": 7.703333333333333,
+   "width": 0.74,
+   "baseline": 0.89,
+   "heightRatio": 0.5053005068790731,
+   "topClearanceDp": 24,
+   "menu": [
+    "일반전",
+    "랭크전"
+   ],
+   "actionIds": [
+    "normal",
+    "rank"
+   ],
+   "behindTerrace": false
+  }
+ ],
+ "residents": [
+  {
+   "id": "blacksmith",
+   "role": "대장장이",
+   "silhouette": "large-blacksmith",
+   "asset": "blacksmith",
+   "x": 7.1033333333329995,
+   "width": 0.2915606936416185,
+   "baseline": 0.91,
+   "heightRatio": 0.24,
+   "shadow": {
+    "asset": "companions-shadows",
+    "crop": [
+     0,
+     0.666015625,
+     1,
+     1
+    ],
+    "anchorX": 0.47,
+    "anchorY": 0.56,
+    "widthRatio": 1.03,
+    "opacity": 0.4
+   }
+  },
+  {
+   "id": "merchant",
+   "role": "상인",
+   "silhouette": "slender-merchant",
+   "asset": "merchant",
+   "x": 6.413333333333,
+   "width": 0.17079579225851768,
+   "baseline": 0.91,
+   "heightRatio": 0.22493195855474427,
+   "occludes": [
+    "market"
+   ],
+   "shadow": {
+    "asset": "companions-shadows",
+    "crop": [
+     0,
+     0.666015625,
+     1,
+     1
+    ],
+    "anchorX": 0.49278650558993686,
+    "anchorY": 0.56,
+    "widthRatio": 1.03,
+    "opacity": 0.4
+   }
+  },
+  {
+   "id": "librarian",
+   "role": "사서",
+   "silhouette": "stooped-elder-librarian",
+   "asset": "librarian",
+   "x": 4.046666666666667,
+   "width": 0.10449897750511247,
+   "baseline": 0.82,
+   "heightRatio": 0.21,
+   "occludes": [
+    "archive"
+   ],
+   "shadow": {
+    "asset": "companions-shadows",
+    "crop": [
+     0,
+     0.666015625,
+     1,
+     1
+    ],
+    "anchorX": 0.47,
+    "anchorY": 0.56,
+    "widthRatio": 1.15,
+    "opacity": 0.4
+   }
+  },
+  {
+   "id": "guard",
+   "role": "방범대원",
+   "silhouette": "angular-stone-wing-patrol",
+   "asset": "patrol",
+   "x": 1.5,
+   "width": 0.24929311969839776,
+   "baseline": 0.91,
+   "heightRatio": 0.23,
+   "occludes": [
+    "hideout"
+   ],
+   "shadow": {
+    "asset": "companions-shadows",
+    "crop": [
+     0,
+     0.666015625,
+     1,
+     1
+    ],
+    "anchorX": 0.47,
+    "anchorY": 0.56,
+    "widthRatio": 1.03,
+    "opacity": 0.4
+   }
+  }
+ ],
+ "landmark": {
+  "id": "restoration-plaza",
+  "x": 4.301666666666667,
+  "width": 0.36,
+  "baseline": 0.89,
+  "stageAssets": [
+   "statue-stage-1",
+   "statue-stage-2",
+   "statue-stage-3",
+   "statue-stage-4",
+   "statue-stage-5"
+  ],
+  "stateSource": "native/roster60/story/state:statue.stage",
+  "artworkStatus": "all-five-technical-candidates-integrated-user-final-approval-pending",
+  "groundAnchor": 0.9778645833333334
+ },
+ "districtScenery": [
+  {
+   "id": "layered-patrol",
+   "asset": "layered-patrol",
+   "district": "companions",
+   "x": 1.5,
+   "worldWidth": 3,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-approved",
+   "asset": "layered-approved",
+   "district": "harbor",
+   "x": 4.166666666666666,
+   "worldWidth": 3,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-market",
+   "asset": "layered-market",
+   "district": "market",
+   "x": 6.833333333333333,
+   "worldWidth": 3,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-join-patrol-approved",
+   "asset": "layered-join-patrol-approved",
+   "district": "memory",
+   "x": 2.833333333333333,
+   "worldWidth": 1,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-join-approved-market",
+   "asset": "layered-join-approved-market",
+   "district": "harbor",
+   "x": 5.5,
+   "worldWidth": 1,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-join-market-patrol-wrap",
+   "asset": "layered-join-market-patrol-wrap",
+   "district": "companions",
+   "x": 0.16666666666666785,
+   "worldWidth": 1,
+   "depth": "backdrop",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  },
+  {
+   "id": "layered-quay",
+   "asset": "layered-quay",
+   "district": "harbor",
+   "x": 4.166666666666666,
+   "worldWidth": 3,
+   "depth": "terrace",
+   "heightRatio": 1,
+   "baseline": 1,
+   "groundAnchor": 1,
+   "fadeUnits": 0,
+   "clipTop": 0
+  }
+ ],
+ "decorations": [
+  {
+   "id": "workshop",
+   "asset": "market-forge",
+   "x": 7.013333333333334,
+   "width": 0.6749999999999999,
+   "heightRatio": 0.5338735818476499,
+   "baseline": 0.89,
+   "parallax": 1,
+   "surface": "layered-market",
+   "sourceX": 0.56,
+   "sourceY": 0.89
+  }
+ ]
+}

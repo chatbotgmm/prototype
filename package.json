@@ -7,16 +7,18 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "tsc -p tsconfig.json --noEmit",
+    "check": "tsc -p tsconfig.json && tsc -p web/tsconfig.json",
     "test": "vitest run",
     "data:check": "tsx tools/check-data.ts",
     "parity:generate": "tsx tools/parity/generate.ts",
-    "dev": "tsx tools/dev-server.ts",
+    "dev": "node tools/build-web.mjs && tsx tools/dev-server.ts",
     "server": "tsx server/src/main.ts",
-    "db:generate": "prisma generate --schema server/prisma/schema.prisma"
+    "db:generate": "prisma generate --schema server/prisma/schema.prisma",
+    "web:build": "node tools/build-web.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "esbuild": "^0.25.10",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

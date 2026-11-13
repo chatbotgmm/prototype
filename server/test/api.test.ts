@@ -126,3 +126,13 @@ describe('전투',()=>{
     expect(s.body.settlement.xpAwarded).toBe(0);expect((await db.owned.findUniqueOrThrow({where:{id:unitIds[2]}})).totalXp).toBe(u.totalXp);
   });
 });
+
+describe('웹 화면 파일',()=>{
+  it('첫 페이지·묶음·그림을 주고, 바깥 파일은 막음',async()=>{
+    const page=await app.inject({url:'/proto/'});expect(page.statusCode).toBe(200);expect(page.body).toContain('<meta name="gmm-base" content="/proto">');
+    expect((await app.inject({url:'/proto/assets/units/u01-front.webp'})).headers['content-type']).toBe('image/webp');
+    expect((await app.inject({url:'/proto/assets/../data/catalog.json'})).statusCode).toBe(404);
+    expect((await app.inject({url:'/proto/assets/%2e%2e/data/catalog.json'})).statusCode).toBe(404);
+    expect((await app.inject({url:'/proto/style.css'})).statusCode).toBe(200);
+  });
+});
