@@ -2,18 +2,19 @@
 import Fastify,{type FastifyReply,type FastifyRequest} from 'fastify';
 import type {PrismaClient} from '@prisma/client';
 import {z} from 'zod';
-import {RuleError,growthAt,equippedSkills,skillElements} from '../../shared/src/index.js';
+import {RuleError} from '../../shared/src/index.js';
 import {loadContent} from './content.js';
 import {sessionSigner,rawSession,COOKIE,SESSION_DAYS} from './auth.js';
 import {ApiError,apiFail} from './errors.js';
 import {BattleService,isValidParty,partyPolicy} from './battle-service.js';
+import {AcquisitionService} from './acquisition-service.js';
 import {serial} from './receipts.js';
 import {registerStatic} from './static.js';
 
-export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;now?:()=>number};
+export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;now?:()=>number;/** 시험용: 모집 굴림 주입 */roll?:(max:number)=>number};
 export async function buildApp(db:PrismaClient,opt:AppOptions){
   const base=(opt.basePath??'/proto').replace(/\/$/,''),api=`${base}/api/v1`,now=opt.now??Date.now;
-  const content=loadContent(opt.root),battles=new BattleService(db,content),sessions=sessionSigner(opt.secret);
+  const content=loadContent(opt.root),battles=new BattleService(db,content),acquisition=new AcquisitionService(db,content,opt.roll),sessions=sessionSigner(opt.secret);
   const app=Fastify({logger:opt.log??false,bodyLimit:8192});
   app.setErrorHandler((e,_req,reply)=>{
     if(e instanceof ApiError)return reply.code(e.status).send({error:e.code});
@@ -59,33 +60,44 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
     return {playerId:p.id,nickname:p.nickname,credits:p.credits,items:items.map(i=>({itemId:i.itemId,count:i.count})),commander:{level:null,reason:'COMMANDER_NOT_CONNECTED'},testBaseline:content.catalog.productionBalanceApproved===false};
   });
 
-  // ── 보유 개체
-  const ownedSummary=(u:Parameters<BattleService['formationUnit']>[0]&{status:string;locked:boolean})=>({...battles.formationUnit(u),reincarnation:u.reincarnation,status:u.status,locked:u.locked});
-  route('GET','/owned',async id=>{
-    const rows=await db.owned.findMany({where:{playerId:id},orderBy:{createdAt:'asc'}});
-    return {units:rows.map(ownedSummary)};
-  });
-  route('GET','/owned/:ownedId',async(id,req)=>{
-    const {ownedId}=z.object({ownedId:z.string().min(1).max(100)}).parse(req.params);
-    const u=await db.owned.findFirst({where:{id:ownedId,playerId:id}});if(!u)return apiFail(404,'UNIT_NOT_FOUND');
-    const def=content.catalog.characters.find(d=>d.id===u.speciesId)!,g=growthAt(Number(u.totalXp),def.growth,u.reincarnation,def.reincarnationXpPolicy);
-    const skills=equippedSkills(content.catalog,u.speciesId,u.skillInheritanceJson).map(e=>({slot:e.slot,id:e.skill.id,name:e.skill.name,element:e.skill.element,power:e.skill.power,mpCost:e.skill.mpCost,learnLevel:e.origin.requiredLevel,unlocked:e.origin.requiredLevel<=g.level,inherited:e.origin.sourceSpeciesId!==u.speciesId}));
-    const next=skills.filter(s=>!s.unlocked).sort((a,b)=>a.learnLevel-b.learnLevel)[0]??null;
-    return {...ownedSummary(u),totalXp:u.totalXp.toString(),xp:g.xp,xpToNext:g.xpToNext,role:def.role,
-      attack:{...def.attack},skills,nextLearn:next?{level:next.learnLevel,skillId:next.id}:null,
-      suitability:{...def.suitability},ownResistance:Object.fromEntries(skillElements.map(e=>[e,def.defense[e]]))};
-  });
+  // ── 보유 개체(원본 roster60-owned.ts 모양: 목록은 레벨 높은 순, 재료로 쓴 개체 제외)
+  route('GET','/owned',async id=>acquisition.ownedList(id));
+  route('GET','/owned/:ownedId',async(id,req)=>acquisition.ownedRead(id,z.object({ownedId:z.string().min(1).max(100)}).parse(req.params).ownedId));
+
+  // ── 첫 갈매미
+  const requestIdField=z.string().min(1).max(100),catalogVersion=z.string().min(1).max(100);
+  route('GET','/onboarding',async id=>acquisition.onboarding(id));
+  route('POST','/onboarding/start',async id=>acquisition.onboardingStart(id));
+  route('POST','/onboarding/complete',async id=>acquisition.onboardingComplete(id));
+  route('POST','/onboarding/preview',async(id,req)=>acquisition.onboardingPreview(id,z.object({ticketId:z.string().min(1).max(100)}).strict().parse(req.body).ticketId));
+  route('POST','/onboarding/confirm',async(id,req)=>acquisition.onboardingConfirm(id,z.object({ticketId:z.string().min(1).max(100),characterId:z.string().max(10),catalogVersion}).strict().parse(req.body)));
+
+  // ── 모집
+  route('GET','/recruit',async id=>acquisition.recruitInfo(id));
+  route('POST','/recruit/start',async(id,req)=>acquisition.recruitStart(id,z.object({requestId:requestIdField,kind:z.enum(['LOW','MID','HIGH']),catalogVersion,times:z.number().int().min(1).max(50).optional()}).strict().parse(req.body)));
+  route('POST','/recruit/action',async(id,req)=>acquisition.recruitAction(id,z.object({requestId:requestIdField,sessionId:z.string().uuid(),revision:z.number().int().nonnegative(),action:z.enum(['reroll','claim','reject'])}).strict().parse(req.body)));
+  route('POST','/recruit/claim-all',async(id,req)=>acquisition.recruitClaimAll(id,z.object({requestId:requestIdField,sessions:z.array(z.object({sessionId:z.string().uuid(),revision:z.number().int().nonnegative()}).strict()).min(1).max(50)}).strict().parse(req.body)));
+
+  // ── 도감·조합
+  route('GET','/collection',async id=>acquisition.collection(id));
+  const inheritance=z.object({skillId:z.string().min(1).max(100),replaceSlot:z.number().int().min(0).max(5)}).strict();
+  const selection=z.object({resultId:z.string().regex(/^u\d{2}$/),materialIds:z.array(z.string().min(1).max(100)).min(1).max(6),catalogVersion,inheritance:inheritance.optional()}).strict();
+  route('GET','/craft/options',async(id,req)=>acquisition.craftOptions(id,(req.query as {discovery?:string}).discovery==='1'));
+  route('POST','/craft/preview',async(id,req)=>acquisition.craftPreview(id,selection.parse(req.body)));
+  route('POST','/craft/confirm',async(id,req)=>acquisition.craftConfirm(id,selection.extend({requestId:requestIdField,previewFingerprint:z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body)));
 
   // ── 편성
   route('GET','/party',async id=>{
     const p=await db.party.findUnique({where:{playerId:id}});
-    return {ownedIds:p?JSON.parse(p.ownedIds):[],partyPolicy};
+    // 재료로 쓴 개체 등 지금 없는 개체는 빼고 돌려줌
+    const ids:string[]=p?JSON.parse(p.ownedIds):[],alive=new Set((await db.owned.findMany({where:{playerId:id,id:{in:ids},status:{not:'CONSUMED'}},select:{id:true}})).map(o=>o.id));
+    return {ownedIds:ids.filter(x=>alive.has(x)),partyPolicy};
   });
   route('POST','/party',async(id,req)=>{
     const {ownedIds}=z.object({ownedIds:z.array(z.string().min(1).max(100)).max(6)}).strict().parse(req.body);
     if(!isValidParty(ownedIds))return apiFail(400,'INVALID_PARTY');
     return serial(id,async()=>{
-      const n=await db.owned.count({where:{playerId:id,id:{in:ownedIds}}});if(n!==ownedIds.length)return apiFail(404,'UNIT_NOT_FOUND');
+      const n=await db.owned.count({where:{playerId:id,id:{in:ownedIds},status:{not:'CONSUMED'}}});if(n!==ownedIds.length)return apiFail(404,'UNIT_NOT_FOUND');
       await db.party.upsert({where:{playerId:id},create:{playerId:id,ownedIds:JSON.stringify(ownedIds)},update:{ownedIds:JSON.stringify(ownedIds)}});
       return {ownedIds,partyPolicy};
     });

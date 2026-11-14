@@ -24,6 +24,8 @@ model Player {
   battles    Battle[]
   receipts   Receipt[]
   observed   ObservedDefense[]
+  onboarding OnboardingState?
+  recruits   RecruitSession[]
 }
 
 model LoginCode {
@@ -111,4 +113,30 @@ model ObservedDefense {
 
   @@id([playerId, speciesId, profileKey, element])
   @@index([playerId, speciesId])
+}
+
+// 첫 갈매미 흐름(원본 Roster60State): 시작 → 튜토리얼 전투 승리(정산) → 커먼 선택지급권 → 커먼 7종 중 하나
+model OnboardingState {
+  playerId       String    @id
+  starterId      String    @unique // 시작하며 받은 갈매미맨(u01) 개체
+  tutorialProof  String? // 튜토리얼 전투를 이기고 정산한 전투 ID(서버만 기록)
+  completedAt    DateTime?
+  ticketId       String?   @unique // 커먼 선택지급권
+  selectedId     String? // 고른 종
+  rewardOwnedId  String?
+  catalogVersion String?
+  player         Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 모집 후보 한 장(원본 Roster60RecruitSession). status: PENDING | CLAIMED | REJECTED
+model RecruitSession {
+  id        String   @id @default(uuid())
+  playerId  String
+  revision  Int      @default(0)
+  status    String   @default("PENDING")
+  snapshot  String
+  createdAt DateTime @default(now())
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, status])
 }

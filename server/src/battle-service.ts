@@ -11,6 +11,7 @@ import {
 import type {Content} from './content.js';
 import {apiFail} from './errors.js';
 import {withReceipt} from './receipts.js';
+import {AcquisitionService} from './acquisition-service.js';
 
 export const partyPolicy={version:'single-active-party-3-v1',minParty:1,maxParty:3,activeSlots:1,sizeRule:'up-to-max'} as const;
 export function isValidParty(ids:unknown):ids is string[]{
@@ -118,6 +119,8 @@ export class BattleService{
         const released=await tx.owned.updateMany({where:{id:u.ownedId,playerId,status:'BATTLE',totalXp:BigInt(m.startingXp),reincarnation:m.reincarnation},data:{status:'AVAILABLE',totalXp:BigInt(u.endingXp)}});
         if(released.count!==1)return apiFail(409,'UNIT_STATE_CHANGED');}
       await tx.player.update({where:{id:playerId},data:{revision:{increment:1}}});
+      // 튜토리얼 전투를 이겨서 정산하면 첫 갈매미 흐름의 증거로 기록(원본 verifyRosterTutorial)
+      if(state.outcome==='win'&&snap.encounter.tutorial)await AcquisitionService.verifyTutorial(tx,playerId,row.id);
       return this.view({...row,revision:row.revision+1,status:'SETTLED',settlement:JSON.stringify(settlement)},tx);
     });
   }

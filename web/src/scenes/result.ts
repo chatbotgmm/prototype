@@ -18,6 +18,6 @@ export const result=():Scene=>({
             h('div',{class:'xp-text'},h('b',{},`${o?.name??''} Lv${p?.before.level??'?'}${p&&p.after.level>p.before.level?` → Lv${p.after.level}`:''}`),
               p?h('div',{class:'bar bar-xp'},h('i',{style:{width:`${pct(p.after)}%`}})):null,h('small',{},`+${u.appliedXp} 경험치`)));}),
         h('p',{class:'muted small'},'경험치는 처음 출전한 대원만 받아요(원본 규칙). 수치는 시험값이에요.'),
-        h('div',{class:'result-actions'},button('다시 출전',()=>go('training'),{kind:'primary'}),button('마을로',()=>go('village'))))));
+        h('div',{class:'result-actions'},v.state.mode==='story'?button('마을로',()=>go('village'),{kind:'primary'}):button('다시 출전',()=>go('training'),{kind:'primary'}),v.state.mode==='story'?null:button('마을로',()=>go('village'))))));
   },
 });

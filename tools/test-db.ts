@@ -17,9 +17,9 @@ export async function createTestDb(){
   return {db,url,close:async()=>{await db.$disconnect();rmSync(dir,{recursive:true,force:true});}};
 }
 /** 시험 계정: 개체(종·레벨 지정), 아이템, 로그인 코드 여러 개(한 번씩만 쓸 수 있음). */
-export async function seedTestPlayer(db:PrismaClient,opt:{name:string;units:{speciesId:string;level:number;reincarnation?:number}[];items?:Record<string,number>;codes:string[];hoursValid?:number}){
+export async function seedTestPlayer(db:PrismaClient,opt:{name:string;units:{speciesId:string;level:number;reincarnation?:number}[];items?:Record<string,number>;codes:string[];hoursValid?:number;credits?:number}){
   const catalog:Catalog=JSON.parse(readFileSync(join(root,'data/catalog.json'),'utf8'));
-  const player=await db.player.create({data:{identity:`test:${opt.name}`,nickname:opt.name,isTest:true,credits:40}});
+  const player=await db.player.create({data:{identity:`test:${opt.name}`,nickname:opt.name,isTest:true,credits:opt.credits??40}});
   const units=[];
   for(const [i,u] of opt.units.entries()){
     const def=catalog.characters.find(c=>c.id===u.speciesId);if(!def)throw Error(`없는 종: ${u.speciesId}`);

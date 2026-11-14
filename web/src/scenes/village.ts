@@ -3,7 +3,7 @@
 //  - 구역 배경: 가운데 x, 너비 worldWidth×단위, 높이 heightRatio×화면 높이, 위 = baseline×H − 높이×groundAnchor (VillageDistrictScene.java 24~26줄)
 //  - 건물·주민: 높이 heightRatio×H, 너비는 그림 비율, 가운데 x, 발 = baseline×H (NativeVillageHomeView.java 380·388줄)
 import {h,button,asset} from '../core/dom.js';
-import {api} from '../core/api.js';
+import {api,message} from '../core/api.js';
 import {go,sheet,closeSheet,toast,type Scene} from '../core/scenes.js';
 
 type Asset={file:string;width:number;height:number};
@@ -14,7 +14,7 @@ type Village={worldUnits:number;assets:Record<string,Asset>;districts:{id:string
   decorations:{id:string;asset:string;heightRatio:number;surface:string;sourceX:number;sourceY:number}[]};
 // 지금 단계에서 열리는 기능. 나머지는 이름은 보이되 「다음 단계」로 안내(만들지 않은 기능을 된 것처럼 보이지 않게)
 // 일반전: 원본은 사람 대전(30초 뒤 AI). 대전은 7단계라 지금은 AI 연습 상대(PvE 훈련 조우)로 연결하고 화면에 밝힘
-const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('training')};
+const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('training'),recruit:()=>go('recruit'),collection:()=>go('collection'),craft:()=>go('craft')};
 const NOTE:Record<string,string>={normal:'지금은 AI 연습 상대'};
 
 let villageData:Village|null=null;
@@ -80,11 +80,13 @@ export const village=():Scene=>{
       const jump=(x:number)=>{cancelAnimationFrame(raf);const target=x+1-view.clientWidth/U/2,start=camera;let d=target-start;d=((d+W/2)%W+W)%W-W/2;const t0=performance.now();
         const step=(t:number)=>{const k=Math.min(1,(t-t0)/450),e=1-Math.pow(1-k,3);camera=start+d*e;render();if(k<1)raf=requestAnimationFrame(step);};raf=requestAnimationFrame(step);};
       const hud=h('div',{class:'village-hud'},
-        h('div',{class:'hud-profile panel'},h('b',{},me.nickname??'방범대장'),h('small',{},'방범대장 · 시험 계정')),
+        h('button',{type:'button',class:'hud-profile panel',onclick:()=>go('owned'),'aria-label':'내 갈매미 보기'},h('b',{},me.nickname??'방범대장'),h('small',{},'내 갈매미 · 시험 계정')),
         button('설정',()=>openSettings(),{cls:'hud-settings'}));
       const nav=h('nav',{class:'village-nav','aria-label':'구역 바로가기'},...data.districts.map(d=>button([h('b',{},d.title),h('small',{},d.nav)],()=>jump(d.x),{cls:'nav-btn'})));
-      root.append(h('div',{class:'village-scene'},view,hud,nav));
+      const guide=h('div',{class:'village-guide'});
+      root.append(h('div',{class:'village-scene'},view,hud,nav,guide));
       layout();
+      void onboardingGuide(guide);
     },
     unmount(){cancelAnimationFrame(raf);cleanup.forEach(f=>f());cleanup=[];},
   };
@@ -101,4 +103,20 @@ function openSettings(){
   sheet('설정',h('div',{class:'building-menu'},
     button('첫 화면으로',()=>{closeSheet();go('title');},{cls:'menu-btn'}),
     button('로그아웃',async()=>{await api.logout().catch(()=>{});closeSheet();go('title');},{cls:'menu-btn'})));
+}
+
+/** 첫 갈매미 흐름 안내(원본 순서: 시작 → 튜토리얼 전투 승리 → 커먼 선택지급권 → 고르기). 서버 상태만 보고 다음 할 일을 보여 줌. */
+async function onboardingGuide(el:HTMLElement){
+  try{
+    let s=await api.onboarding();
+    if(!s.started){s=await api.onboardingStart();toast('갈매미맨이 방범대에 합류했어요!');}
+    if(s.tutorialVerified&&!s.tutorialComplete)s=await api.onboardingComplete();
+    if(!s.tutorialVerified){
+      el.replaceChildren(h('div',{class:'guide panel'},h('b',{},'첫 출동'),h('small',{},'갈매미맨과 첫 전투를 이겨 보세요'),
+        button('튜토리얼 전투',async()=>{try{const b=await api.createBattle(s.starter!.id,'tutorial',[]);go('battle',{battleId:b.battleId,view:b});}catch(e){toast(message(e));}},{kind:'primary'})));
+    }else if(s.ticket&&s.ticket.status==='unused'){
+      el.replaceChildren(h('div',{class:'guide panel'},h('b',{},'커먼 선택지급권'),h('small',{},'커먼 7종 중 한 마리를 골라 받아요'),
+        button('고르러 가기',()=>go('starter',{ticketId:s.ticket!.ticketId}),{kind:'primary'})));
+    }else el.replaceChildren();
+  }catch(e){toast(message(e));}
 }

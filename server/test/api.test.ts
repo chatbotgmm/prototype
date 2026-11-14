@@ -40,11 +40,11 @@ describe('계정',()=>{
 
 describe('보유·편성',()=>{
   it('보유 목록과 상세(내 방어 상성은 ownResistance로, defense 키는 없음)',async()=>{
-    const list=await call('GET','/owned');expect(list.body.units.map((u:any)=>[u.speciesId,u.level])).toEqual([['u01',10],['u09',12],['u17',60]]);
+    const list=await call('GET','/owned');expect(list.body.units.map((u:any)=>[u.speciesId,u.level])).toEqual([['u17',60],['u09',12],['u01',10]]); // 원본: 레벨 높은 순
     const d=await call('GET',`/owned/${unitIds[0]}`);
-    expect(d.body.name).toBe('갈매미맨');expect(d.body.ownResistance.DARK).toBe('weak');expect('defense' in d.body).toBe(false);
-    expect(d.body.skills.filter((s:any)=>s.unlocked).map((s:any)=>s.id)).toEqual(['normal_1','holy_1','normal_2']); // 해금 레벨 1·5·10
-    expect(d.body.nextLearn).toEqual({level:24,skillId:'normal_3'});
+    const u=d.body.unit;expect(u.name).toBe('갈매미맨');expect(u.ownResistance.DARK).toBe('weak');expect('defense' in u).toBe(false);
+    expect(u.skills.slots.filter((s:any)=>s.unlocked).map((s:any)=>s.id)).toEqual(['normal_1','holy_1','normal_2']); // 해금 레벨 1·5·10
+    expect(u.skills.nextLearn.level).toBe(24);expect(u.skills.nextLearn.skills.map((s:any)=>s.id)).toEqual(['normal_3']);
   });
   it('편성은 1~3마리',async()=>{
     expect((await call('POST','/party',{ownedIds:[]})).body.error).toBe('INVALID_PARTY');

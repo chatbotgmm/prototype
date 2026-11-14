@@ -180,3 +180,89 @@ img{user-select:none;-webkit-user-drag:none}
 .xp-row img{width:56px;height:56px;object-fit:contain}
 .xp-text{flex:1;display:flex;flex-direction:column;gap:3px}
 .result-actions{display:flex;gap:.6em;justify-content:center}
+
+/* 상세: 능력치 표 */
+.stat-table{width:100%;border-collapse:separate;border-spacing:3px;font-size:.85em}
+.stat-table th{color:var(--muted);font-weight:400;font-family:'Gowun Dodum',sans-serif;text-align:center}
+.stat-table td{background:var(--slot);border-radius:5px;text-align:center;padding:.15em}
+.stat-table tr.total td{color:var(--gold-edge);font-family:Jua,sans-serif}
+.res .apt{font-size:.65em}
+
+/* 5단계 공통 */
+.starter-scene,.recruit-scene,.craft-scene,.collection-scene,.owned-scene{position:absolute;inset:0;display:flex;flex-direction:column;background:#0b1e2a}
+.center{text-align:center}
+.btn.on{border-color:var(--gold-edge);box-shadow:inset 0 0 0 2px var(--gold)}
+.credits{color:var(--gold-edge);font-family:Jua,sans-serif;margin-left:auto}
+.grade{font-family:Jua,sans-serif;font-size:.75em;padding:0 .45em;border-radius:5px;background:var(--slot);color:var(--muted)}
+.grade-RARE{color:#8fc6f0}.grade-EPIC{color:#d3a6f0}.grade-LEGEND{color:#f3d89e}.grade-HIDDEN{color:#f0a6b8}
+
+/* 마을: 첫 갈매미 안내 */
+.village-guide{position:absolute;right:10px;top:66px}
+.guide{display:flex;flex-direction:column;gap:2px;padding:.4em .7em;min-width:12em}
+.guide small{color:var(--muted);font-size:.78em}
+.hud-profile{color:var(--text);cursor:pointer;text-align:left}
+
+/* 커먼 고르기 */
+.starter-body{flex:1;display:flex;gap:10px;padding:10px 12px;min-height:0}
+.starter-pick{width:44%;display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:6px;min-height:0}
+.starter-card{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text);cursor:pointer;padding:4px;min-height:48px;min-width:0}
+.starter-card img{width:100%;flex:1;min-height:0;object-fit:contain}
+.starter-card.picked{border-color:var(--gold-edge);box-shadow:inset 0 0 0 2px var(--gold)}
+.starter-detail{flex:1;display:flex;flex-direction:column;gap:.4em;padding:.6em .8em;min-height:0}
+.starter-detail .big{margin-top:auto;align-self:center}
+
+/* 모집 */
+.recruit-body{flex:1;display:flex;flex-direction:column;gap:8px;padding:10px 12px;min-height:0}
+.times{display:flex;gap:6px;align-items:center;justify-content:center}
+.offer-grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:0}
+.offer{display:flex;flex-direction:column;gap:.3em;padding:.6em .8em;min-height:0}
+.offer p{margin:0}.offer .btn{margin-top:auto}
+.cand-row{flex:1;display:flex;gap:8px;overflow-x:auto;min-height:0;padding-bottom:4px;scroll-snap-type:x mandatory}
+.cand-card{flex:0 0 clamp(150px,22vw,220px);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px;min-height:0;scroll-snap-align:center;cursor:pointer}
+.cand-card.focus{border-color:var(--gold-edge)}
+.cand-card img{width:100%;flex:1;min-height:0;object-fit:contain}
+.cand-card small{color:var(--muted);font-size:.78em}
+.cand-actions{display:grid;grid-template-columns:auto 1fr;gap:4px;width:100%}
+.cand-actions .btn{min-width:48px;padding:.2em .4em;justify-content:center;white-space:nowrap}
+.cand-actions .cand-reject{grid-column:1/3}
+.cand-spacer{min-height:48px;visibility:hidden}
+.recruit-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+/* 조합 */
+.craft-body{flex:1;display:flex;gap:10px;padding:10px 12px;min-height:0}
+.recipe-list{width:40%;display:flex;flex-direction:column;gap:4px;padding:6px;min-height:0}
+.recipe-row{justify-content:flex-start;width:100%;gap:.5em}
+.recipe-row.ready{border-color:var(--gold)}
+.recipe-row .thumb{width:40px;height:40px;object-fit:contain}
+.recipe-row .thumb.hidden{visibility:hidden}
+.rname{display:flex;flex-direction:column;min-width:0}
+.recipe-list .pager{margin-top:auto}
+.recipe-detail{flex:1;display:flex;flex-direction:column;gap:.3em;padding:.6em .8em;min-height:0}
+.recipe-detail .big{margin-top:auto;align-self:center}
+.unknown-art{width:96px;height:96px;display:flex;align-items:center;justify-content:center;font-size:2.4em;color:var(--muted);background:var(--slot);border-radius:10px;font-family:Jua,sans-serif}
+.ing-list{margin:0;padding-left:1.1em}.ing-list li{color:var(--muted)}.ing-list li.ok{color:var(--text)}
+.inherit p{margin:.2em 0}
+.inherit-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.inherit-grid .skill-btn{flex-direction:column;align-items:flex-start;justify-content:center;gap:0}
+
+/* 도감 */
+.grade-tabs{display:flex;gap:4px;padding:6px 12px 0;overflow-x:auto}
+.grade-tabs .btn{flex:0 0 auto;padding:.2em .6em}
+.dex-grid{flex:1;display:grid;gap:6px;padding:6px 12px;align-content:start;min-height:0}
+.dex-card{display:flex;flex-direction:column;align-items:center;color:var(--text);cursor:pointer;padding:4px;min-height:48px}
+.dex-card img{width:100%;height:clamp(40px,15vh,96px);object-fit:contain}
+.dex-card b{font-size:.85em}.dex-card small{color:var(--muted);font-size:.72em}
+.dex-card.unowned img{filter:grayscale(.85) brightness(.75)}
+.collection-scene>.pager{padding:0 0 8px}
+
+/* 내 갈매미 */
+.owned-body{flex:1;display:flex;gap:10px;padding:10px 12px;min-height:0}
+.owned-hero{width:36%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:4px;padding:6px;min-height:0}
+.hero-main{display:flex;flex-direction:column;align-items:center;gap:3px;min-height:0;height:100%}
+.hero-main img{width:100%;flex:1;min-height:0;object-fit:contain}
+.hero-main small{color:var(--muted);font-size:.78em;text-align:center}
+.hero-main .bar{width:100%}
+.owned-detail{flex:1;display:flex;flex-direction:column;gap:.3em;padding:.6em .8em;min-height:0}
+.owned-detail p{margin:0}
+.owned-buttons{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.4em;min-height:0}
+.owned-buttons .btn{font-size:1.15em;min-height:56px}

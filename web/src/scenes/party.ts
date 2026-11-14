@@ -3,7 +3,8 @@
 import {h,button,unitArt} from '../core/dom.js';
 import {api,message,type OwnedUnit} from '../core/api.js';
 import {go,sheet,toast,type Scene} from '../core/scenes.js';
-import {gradeName,elementName,defenseName,ELEMENTS,statName} from '../core/labels.js';
+import {gradeName} from '../core/labels.js';
+import {unitDetailBody} from '../core/unitview.js';
 
 export const party=():Scene=>({
   async mount(root,params:{next?:string}={}){
@@ -41,14 +42,5 @@ export const party=():Scene=>({
   },
 });
 async function openDetail(u:OwnedUnit){
-  try{
-    const d=await api.ownedDetail(u.ownedId);
-    const stats=h('div',{class:'stat-grid'},...(Object.keys(statName) as (keyof typeof statName)[]).map(k=>h('div',{},h('small',{},statName[k]),h('b',{},String(d.stats[k])))));
-    const skills=h('ul',{class:'skill-list'},h('li',{},h('b',{},d.attack.name),h('small',{},` 일반 공격 · 위력 ${d.attack.power} · MP 0`)),
-      ...d.skills.map(s=>h('li',{class:s.unlocked?'':'locked'},h('b',{},s.name),h('small',{},` ${elementName[s.element]} · 위력 ${s.power} · MP ${s.mpCost}${s.unlocked?'':` · Lv${s.learnLevel} 해금`}`))));
-    const resist=h('div',{class:'resist-grid'},...ELEMENTS.map(e=>h('div',{class:`res res-${d.ownResistance[e]}`},h('small',{},elementName[e]),h('b',{},defenseName[d.ownResistance[e]]))));
-    sheet(`${d.name} Lv${d.level}`,h('div',{class:'detail'},
-      h('div',{class:'detail-head'},h('img',{src:unitArt(d.speciesId,'front'),alt:''}),h('div',{},h('p',{},`${gradeName[d.rarity]??d.rarity} · ${d.role}`),h('p',{class:'muted'},d.xpToNext===null?'최대 레벨':`다음 레벨까지 ${d.xpToNext.toLocaleString()} 경험치`),stats)),
-      h('h3',{},'기술'),skills,h('h3',{},'받는 속성(내 방어 상성)'),resist));
-  }catch(e){toast(message(e));}
+  try{const d=await api.ownedDetail(u.ownedId);sheet(`${d.name} Lv${d.level}`,unitDetailBody(d));}catch(e){toast(message(e));}
 }

@@ -32,12 +32,42 @@ export type BattleView={battleId:string;revision:number;status:'ACTIVE'|'FINISHE
     rounds:{turn:number;events:any[]}[]};
   settlement:any;inventory:{itemId:string;count:number}[];itemDefinitions:Record<string,{name:string;heal?:number;revive?:number;cleanse?:boolean;desc:string}>;disabledCommands:Record<string,string>};
 
+export type Candidate={speciesId:string;name:string;rarity:string;level:number;totalXp:number};
+export type RecruitSession={sessionId:string;batchId:string;batchIndex:number;revision:number;status:string;kind:string;baseCost:number;rerollCost:number;rerolls:number;candidate:Candidate;ownedId?:string;ownedSpecies:boolean;canReject:boolean;rejectReason:string};
+export type RecruitState={credits:number;pendingSessions:RecruitSession[]};
+export type Onboarding={started:boolean;starter?:{id:string;speciesId:string;name:string};tutorialVerified?:boolean;tutorialComplete?:boolean;ticket?:{ticketId:string;name:string;status:'used'|'unused';characterId:string|null}|null};
+export type OwnedDetail={ownedId:string;speciesId:string;name:string;rarity:string;level:number;maxLevel:number;reincarnation:number;status:string;stats:Stats;
+  growth:{xp:number;xpToNext:number|null;levelStartTotalXp:number;nextLevelTotalXp:number|null;totalXp:number};statBreakdown:{base:Stats;growth:Stats;rebirth:Stats;total:Stats};
+  aptitude:Record<string,number>;ownResistance:Record<string,string>;
+  skills:{attack:Skill;slots:(Skill&{slot:number;learnLevel:number;unlocked:boolean;inherited:boolean})[];inheritance:{skillId:string;sourceSpeciesId:string;replaceSlot:number}|null;nextLearn:{level:number;skills:Skill[]}|null};party:{pvp:{position:number|null}}};
+export type Recipe={resultId:string;name:string;discovered:boolean;nameVisible:boolean;materialsReady:boolean;craftable:boolean;levelRestricted:boolean;hidden:boolean;
+  ingredients:{unitId:string;count:number;minLevel:number;name:string;imageVisible:boolean;availableCount:number;readyCount:number}[]};
+export type CraftUnit={ownedId:string;speciesId:string;name:string;level:number;reincarnation:number};
+export type InheritanceView={status:'selected'|'selection-required';candidates:{skillId:string;name:string;element:string;power:number;mpCost:number;requiredLevel:number;source:{name:string;level:number};allowedReplaceSlots:number[]}[];
+  resultSkillSlots:{slot:number;skillId:string;name:string;element:string;power:number;mpCost:number;requiredLevel:number;unlockedAtResultLevel:boolean}[];selected:any};
+export type CraftPreview={resultId:string;resultName:string;resultRarity:string;expectedLevel:number;maxLevel:number;previewFingerprint:string;inheritance:InheritanceView;materialIds:string[]};
+export type Collection={catalogVersion:string;characters:{id:string;name:string;rarity:string;role:string;levelOneStats:Stats;suitability:Record<string,number>;skills:Skill[];ownedCount:number;discovered:boolean;
+  defenseKnowledge:{defenses:Record<string,string>;knownDefenseCount:number;totalDefenseCount:number}}[]};
+
 export const api={
   login:(code:string)=>call<{ok:true}>('POST','/auth/code',{code}),
   logout:()=>call<{ok:true}>('POST','/auth/logout',{}),
   me:()=>call<{playerId:string;nickname:string|null;credits:number;items:{itemId:string;count:number}[];testBaseline:boolean}>('GET','/me'),
   owned:()=>call<{units:OwnedUnit[]}>('GET','/owned'),
-  ownedDetail:(id:string)=>call<OwnedUnit&{totalXp:string;xp:number;xpToNext:number|null;role:string;attack:Skill;skills:(Skill&{unlocked:boolean;inherited:boolean})[];nextLearn:{level:number;skillId:string}|null;suitability:Record<string,number>;ownResistance:Record<string,string>}>('GET',`/owned/${encodeURIComponent(id)}`),
+  ownedDetail:(id:string)=>call<{unit:OwnedDetail}>('GET',`/owned/${encodeURIComponent(id)}`).then(r=>r.unit),
+  onboarding:()=>call<Onboarding>('GET','/onboarding'),
+  onboardingStart:()=>call<Onboarding>('POST','/onboarding/start',{}),
+  onboardingComplete:()=>call<Onboarding>('POST','/onboarding/complete',{}),
+  onboardingPreview:(ticketId:string)=>call<Onboarding&{catalogVersion:string;characters:{id:string;name:string;role:string;levelOneStats:Stats;suitability:Record<string,number>;skills:Skill[]}[]}>('POST','/onboarding/preview',{ticketId}),
+  onboardingConfirm:(ticketId:string,characterId:string,catalogVersion:string)=>call<Onboarding>('POST','/onboarding/confirm',{ticketId,characterId,catalogVersion}),
+  recruit:()=>call<RecruitState&{catalogVersion:string;offers:{kind:string;label:string;cost:number;rerollCost:number;weights:Record<string,number>}[]}>('GET','/recruit'),
+  recruitStart:(kind:string,times:number,catalogVersion:string)=>call<RecruitState&{sessions:RecruitSession[]}>('POST','/recruit/start',{requestId:requestId(),kind,times,catalogVersion}),
+  recruitAction:(s:RecruitSession,action:'reroll'|'claim'|'reject')=>call<RecruitState>('POST','/recruit/action',{requestId:requestId(),sessionId:s.sessionId,revision:s.revision,action}),
+  recruitClaimAll:(list:RecruitSession[])=>call<RecruitState>('POST','/recruit/claim-all',{requestId:requestId(),sessions:list.map(s=>({sessionId:s.sessionId,revision:s.revision}))}),
+  collection:()=>call<Collection>('GET','/collection'),
+  craftOptions:()=>call<{catalogVersion:string;units:CraftUnit[];recipes:Recipe[]}>('GET','/craft/options?discovery=1'),
+  craftPreview:(body:{resultId:string;materialIds:string[];catalogVersion:string;inheritance?:{skillId:string;replaceSlot:number}})=>call<CraftPreview>('POST','/craft/preview',body),
+  craftConfirm:(body:{resultId:string;materialIds:string[];catalogVersion:string;inheritance:{skillId:string;replaceSlot:number};previewFingerprint:string})=>call<CraftPreview&{ownedId:string}>('POST','/craft/confirm',{...body,requestId:requestId()}),
   party:()=>call<{ownedIds:string[]}>('GET','/party'),
   saveParty:(ownedIds:string[])=>call<{ownedIds:string[]}>('POST','/party',{ownedIds}),
   battleOptions:()=>call<{encounters:{id:string;name:string;level:number;tutorial:boolean;mode:string|null}[]}>('GET','/battle/options'),
