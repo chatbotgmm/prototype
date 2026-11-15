@@ -8,6 +8,8 @@ import {sessionSigner,rawSession,COOKIE,SESSION_DAYS} from './auth.js';
 import {ApiError,apiFail} from './errors.js';
 import {BattleService,isValidParty,partyPolicy} from './battle-service.js';
 import {AcquisitionService} from './acquisition-service.js';
+import {AdventureService} from './adventure-service.js';
+import {StoryService} from './story-service.js';
 import {serial} from './receipts.js';
 import {registerStatic} from './static.js';
 
@@ -15,6 +17,7 @@ export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;
 export async function buildApp(db:PrismaClient,opt:AppOptions){
   const base=(opt.basePath??'/proto').replace(/\/$/,''),api=`${base}/api/v1`,now=opt.now??Date.now;
   const content=loadContent(opt.root),battles=new BattleService(db,content),acquisition=new AcquisitionService(db,content,opt.roll),sessions=sessionSigner(opt.secret);
+  const adventures=new AdventureService(db,content,u=>battles.ownedFighter(u)),story=new StoryService(db,content,battles,adventures);
   const app=Fastify({logger:opt.log??false,bodyLimit:8192});
   app.setErrorHandler((e,_req,reply)=>{
     if(e instanceof ApiError)return reply.code(e.status).send({error:e.code});
@@ -113,9 +116,27 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
   ]);
   route('GET','/battle/options',async id=>battles.options(id));
   route('GET','/battle/active',async id=>battles.active(id));
-  route('POST','/battle',async(id,req)=>battles.create(id,z.object({requestId,ownedId:z.string().min(1).max(100),encounterId:z.string().min(1).max(100),reserveIds:z.array(z.string().min(1).max(100)).max(5).optional()}).strict().parse(req.body)));
+  route('POST','/battle',async(id,req)=>battles.create(id,z.object({requestId,ownedId:z.string().min(1).max(100),encounterId:z.string().min(1).max(100),reserveIds:z.array(z.string().min(1).max(100)).max(5).optional(),adventureId:z.string().uuid().optional()}).strict().parse(req.body)));
   route('GET','/battle/:battleId',async(id,req)=>battles.read(id,bid.parse(req.params).battleId));
   route('POST','/battle/:battleId/action',async(id,req)=>{const b=z.object({requestId,revision,action}).strict().parse(req.body);return battles.action(id,{...b,battleId:bid.parse(req.params).battleId});});
   route('POST','/battle/:battleId/settle',async(id,req)=>{const b=z.object({requestId,revision}).strict().parse(req.body);return battles.settle(id,{...b,battleId:bid.parse(req.params).battleId});});
+
+  // ── 모험(원본 adventure/*)
+  const ownedIds=z.array(z.string().min(1).max(100)).min(1).max(3),adventureId=z.string().uuid();
+  route('GET','/adventure/active',async id=>adventures.active(id));
+  route('GET','/adventure/:adventureId',async(id,req)=>adventures.read(id,z.object({adventureId}).parse(req.params).adventureId));
+  route('POST','/adventure/start',async(id,req)=>adventures.start(id,z.object({requestId,ownedIds}).strict().parse(req.body)));
+  route('POST','/adventure/:adventureId/return',async(id,req)=>{const b=z.object({requestId,revision}).strict().parse(req.body);return adventures.return(id,{...b,adventureId:z.object({adventureId}).parse(req.params).adventureId});});
+
+  // ── 스토리·주민 의뢰(원본 story/*)
+  const questId=z.string().min(1).max(100);
+  route('GET','/story',async id=>story.state(id));
+  route('GET','/story/materials',async id=>story.materials(id));
+  route('POST','/story/open',async(id,req)=>story.open(id,z.object({requestId,revision,questId,phase:z.enum(['intro','return','replay'])}).strict().parse(req.body)));
+  route('POST','/story/advance',async(id,req)=>story.advance(id,z.object({requestId,revision,cursor:z.number().int().nonnegative()}).strict().parse(req.body)));
+  route('POST','/story/accept',async(id,req)=>story.accept(id,z.object({requestId,revision,questId}).strict().parse(req.body)));
+  route('POST','/story/close',async(id,req)=>story.close(id,z.object({requestId,revision}).strict().parse(req.body)));
+  route('POST','/story/battle',async(id,req)=>story.createBattle(id,z.object({requestId,questId,ownedIds,adventureId:adventureId.optional()}).strict().parse(req.body)));
+  route('POST','/story/material-battle',async(id,req)=>story.createBattle(id,z.object({requestId,encounterId:z.string().min(1).max(100),ownedIds,adventureId:adventureId.optional()}).strict().parse(req.body)));
   return app;
 }

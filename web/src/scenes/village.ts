@@ -5,6 +5,7 @@
 import {h,button,asset} from '../core/dom.js';
 import {api,message} from '../core/api.js';
 import {go,sheet,closeSheet,toast,type Scene} from '../core/scenes.js';
+import {openStory} from './story.js';
 
 type Asset={file:string;width:number;height:number};
 type Building={id:string;name:string;sub:string;asset:string;x:number;width:number;baseline:number;heightRatio:number;behindTerrace?:boolean;menu:string[];actionIds:string[]};
@@ -14,7 +15,8 @@ type Village={worldUnits:number;assets:Record<string,Asset>;districts:{id:string
   decorations:{id:string;asset:string;heightRatio:number;surface:string;sourceX:number;sourceY:number}[]};
 // 지금 단계에서 열리는 기능. 나머지는 이름은 보이되 「다음 단계」로 안내(만들지 않은 기능을 된 것처럼 보이지 않게)
 // 일반전: 원본은 사람 대전(30초 뒤 AI). 대전은 7단계라 지금은 AI 연습 상대(PvE 훈련 조우)로 연결하고 화면에 밝힘
-const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('training'),recruit:()=>go('recruit'),collection:()=>go('collection'),craft:()=>go('craft')};
+const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('training'),recruit:()=>go('recruit'),collection:()=>go('collection'),craft:()=>go('craft'),
+  explore:()=>openStory({kind:'exploration'}),departure:()=>openStory({kind:'departure'}),'story-history':()=>openStory({kind:'history'})};
 const NOTE:Record<string,string>={normal:'지금은 AI 연습 상대'};
 
 let villageData:Village|null=null;
@@ -22,7 +24,7 @@ export const village=():Scene=>{
   let raf=0,cleanup:(()=>void)[]=[];
   return {
     async mount(root){
-      const [me,data]=await Promise.all([api.me().catch(()=>null),villageData?Promise.resolve(villageData):fetch(asset('village/village.json')).then(r=>r.json() as Promise<Village>)]);
+      const [me,data,story]=await Promise.all([api.me().catch(()=>null),villageData?Promise.resolve(villageData):fetch(asset('village/village.json')).then(r=>r.json() as Promise<Village>),api.story().catch(()=>null)]);
       if(!me){go('title');return;}
       villageData=data;
       const view=h('div',{class:'village-view'}),sky=h('div',{class:'village-sky'}),world=h('div',{class:'village-world'});
@@ -53,10 +55,14 @@ export const village=():Scene=>{
       for(const d of data.decorations){const s=data.districtScenery.find(x=>x.id===d.surface)!,a=data.assets[d.asset];
         put(img(d.asset,'v-deco'),copy=>{const sh=H()*s.heightRatio,sw=s.worldWidth*U,sl=(s.x+copy*W)*U-sw/2,st=H()*s.baseline-sh*s.groundAnchor;const height=H()*d.heightRatio,width=height*a.width/a.height;return {left:sl+sw*d.sourceX-width/2,top:st+sh*d.sourceY-height,width,height};});}
       for(const b of data.buildings.filter(b=>!b.behindTerrace))standing(b.asset,b.x,b.baseline,b.heightRatio,'v-building',buildingEl(b));
-      // 석상(복원 1단계: 스토리 연결 전이라 1단계로 고정)
-      const lm=data.landmark,la=data.assets[lm.stageAssets[0]];
-      put(img(lm.stageAssets[0],'v-statue'),copy=>{const width=lm.width*U,height=width*la.height/la.width;return {left:(lm.x+copy*W)*U-width/2,top:H()*lm.baseline-height*lm.groundAnchor,width,height};});
-      for(const r of data.residents)standing(r.asset,r.x,r.baseline,r.heightRatio,'v-resident');
+      // 석상: 복원 단계는 서버 스토리 상태(statue.stage 1~5, 원본 stateSource). 누르면 메인 이야기(원본 mainStory)
+      const lm=data.landmark,stageKey=lm.stageAssets[Math.min(lm.stageAssets.length,Math.max(1,story?.statue.stage??1))-1],la=data.assets[stageKey];
+      const statue=h('button',{type:'button',class:'v-statue-btn','data-click':'statue','aria-label':'부서진 석상: 메인 이야기'},img(stageKey,'v-img'));
+      put(statue,copy=>{const width=lm.width*U,height=width*la.height/la.width;return {left:(lm.x+copy*W)*U-width/2,top:H()*lm.baseline-height*lm.groundAnchor,width,height};});
+      // 주민: 누르면 그 주민의 부탁(원본 resident)
+      for(const r of data.residents){const res=story?.residents.find(x=>x.id===r.id);
+        standing(r.asset,r.x,r.baseline,r.heightRatio,'v-resident',h('button',{type:'button',class:'v-resident-btn','data-click':'resident:'+r.id,'aria-label':`${res?.name??r.role} · ${r.role}`},
+          res&&['AVAILABLE','READY'].includes(res.status)?h('span',{class:'v-mark'},res.status==='READY'?'!':'?'):null));}
       // 하늘: 원본 layers.background parallax 0.25
       const skyTiles=[0,1,2,3,4].map(()=>{const e=img('layered-sky','v-sky');sky.append(e);return e;});
       const layout=()=>{U=H();for(const p of pieces)p.place();render();};
@@ -73,7 +79,8 @@ export const village=():Scene=>{
       const move=(e:PointerEvent)=>{if(!dragging)return;const dx=e.clientX-lastX;lastX=e.clientX;moved+=Math.abs(dx);camera-=dx/U;vel=dx;render();};
       const up=()=>{if(!dragging)return;dragging=false;const step=()=>{vel*=.94;if(Math.abs(vel)<.3)return;camera-=vel/U;render();raf=requestAnimationFrame(step);};raf=requestAnimationFrame(step);};
       view.addEventListener('pointerdown',down);window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
-      view.addEventListener('click',e=>{if(moved>8)return;const t=(e.target as HTMLElement).closest('[data-click]') as HTMLElement|null;if(t)openBuilding(data.buildings.find(b=>b.id===t.dataset.click)!);},true);
+      view.addEventListener('click',e=>{if(moved>8)return;const t=(e.target as HTMLElement).closest('[data-click]') as HTMLElement|null;if(!t)return;const id=t.dataset.click!;if(id==='statue')openStory({kind:'statue'},refresh);else if(id.startsWith('resident:'))openStory({kind:'resident',id:id.slice(9)},refresh);else openBuilding(data.buildings.find(b=>b.id===id)!);},true);
+      const refresh=()=>go('village'); // 이야기 창을 닫으면 석상 단계·주민 표시를 서버 값으로 다시 그림
       const ro=new ResizeObserver(layout);ro.observe(view);
       cleanup.push(()=>{ro.disconnect();window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);});
       // 화면 고정 UI: 프로필, 구역 바로가기
@@ -92,8 +99,10 @@ export const village=():Scene=>{
   };
 };
 function openBuilding(b:Building){
-  const items=b.menu.map((label,i)=>{
-    const id=b.actionIds[i],run=READY[id];
+  // 기록소에는 「이야기 기록」이 하나 더 붙음(원본 NativeVillageHomeController.building)
+  const menu=b.id==='archive'?[...b.menu,'이야기 기록']:b.menu,actions=b.id==='archive'?[...b.actionIds,'story-history']:b.actionIds;
+  const items=menu.map((label,i)=>{
+    const id=actions[i],run=READY[id];
     return run?button([label,NOTE[id]?h('small',{},NOTE[id]):null],()=>{closeSheet();run();},{kind:'primary',cls:'menu-btn'})
       :button([label,h('small',{class:'soon'},'다음 단계')],()=>toast(`「${label}」은(는) 다음 단계에서 만들어요.`),{cls:'menu-btn'});
   });
@@ -117,6 +126,12 @@ async function onboardingGuide(el:HTMLElement){
     }else if(s.ticket&&s.ticket.status==='unused'){
       el.replaceChildren(h('div',{class:'guide panel'},h('b',{},'커먼 선택지급권'),h('small',{},'커먼 7종 중 한 마리를 골라 받아요'),
         button('고르러 가기',()=>go('starter',{ticketId:s.ticket!.ticketId}),{kind:'primary'})));
-    }else el.replaceChildren();
+    }else{
+      // 진행 중인 모험이 있으면 이어 가기 안내(원본: 전투 화면 들어가면 진행 중인 모험부터 보여 줌)
+      const runs=(await api.adventures()).adventures;
+      if(runs.length)el.replaceChildren(h('div',{class:'guide panel'},h('b',{},'모험 중'),h('small',{},`${runs.length}개 · 정상 귀환해야 보상을 받아요`),
+        button('모험 확인',()=>go('adventure',{adventureId:runs[0].adventureId}),{kind:'primary'})));
+      else el.replaceChildren();
+    }
   }catch(e){toast(message(e));}
 }

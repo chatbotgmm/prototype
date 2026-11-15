@@ -97,6 +97,25 @@
 | GET | `/owned` | 보유 개체(레벨 높은 순, 재료로 쓴 개체 제외) |
 | GET | `/owned/:ownedId` | `{unit}`: 능력치(기본·성장·환생), 적합도, 내 방어 상성, 기술 칸(해금·계승), 다음 해금, 편성 위치 |
 
+## 모험 (구현됨, 원본 roster60-adventure.ts)
+- `GET /adventure/active` → `{adventures:[모험]}` · `GET /adventure/:adventureId` → 모험
+- `POST /adventure/start` `{requestId, ownedIds(1~3)}` → 모험. 개체는 `ADVENTURE`로 잠김.
+- 모험 안 전투: `POST /battle` `{…, encounterId:'adventure-1', adventureId}`. 편성은 출발 편성 그대로(첫 칸만 바꿀 수 있음, 쓰러진 대원은 첫 칸 불가), 체력은 이어 받음.
+- `POST /adventure/:adventureId/return` `{requestId, revision}` → 쌓인 경험치를 지급하고 `RETURNED`. 전투 중이면 `RETURN_ONLY_OUTSIDE_BATTLE`.
+- 모험 = `{adventureId, revision, status:'ACTIVE'|'RETURNED'|'LOST', activeBattleId, kind:'free'|'material'|'quest', questId, party:[{ownedId,speciesId,name,level,hp,maxHp}], pendingRewards:{xp}, settlement}`
+- 모험 전투 정산의 `settlement`: `{outcome, xpEscrowed, xpByOwnedId, xpDiscarded, adventureStatus, pendingRewards, unitXp.delivery:'pending-return'}`. 모두 쓰러지면 `LOST`(쌓인 보상을 잃음).
+
+## 스토리·주민 의뢰 (구현됨, 원본 story/service.ts)
+- `GET /story` → 스토리 상태 `{revision, testValues, statue:{stage,fragments,hatched}, currentQuest, quests(잠긴 것 제외), residents, history, adventures(열린 흑화 모험), materialAdventure, nextStoryHint, scene, pendingDeparture:null}`
+  - 의뢰 `{id,title,kind,chapter,status:'AVAILABLE'|'ACTIVE'|'READY'|'COMPLETED',recommendedLevel,npcId,objective:{wins,requiredWins},canDepart,adventureId,battleId}`
+  - 장면 `{id, questId, phase:'intro'|'return'|'replay', cursor, line:{speakerId,text,speakerName}, last, background, camera}`
+- `GET /story/materials` → 흑화 재료(어둠의 새우Gang) 잔액·누적. 쓰는 곳(강화)은 원본에서도 아직 없음.
+- 쓰기(모두 `requestId`, 장면 쓰기는 `revision`; 틀리면 `STORY_STALE_REVISION`):
+  - `POST /story/open` `{questId, phase}` · `POST /story/advance` `{cursor}` · `POST /story/accept` `{questId}` · `POST /story/close`
+  - `POST /story/battle` `{requestId, questId, ownedIds, adventureId?}` → 전투. 흑화 조우는 모험 안 전투(연결된 모험을 이어 쓰거나 새로 출발), 악당 조우는 스토리 전투.
+  - `POST /story/material-battle` `{requestId, encounterId, ownedIds, adventureId?}` → 흑화 재료 모험 전투
+- 전투 화면 값에 `adventureId`, `story:{questId,encounterId,kind}`가 붙고, 정산 `settlement.story = {darkGangAwarded, questId, objectiveProgressed}`.
+- 원본과 다른 점: 원본의 출발 예약(departure) 단계 없이 거래 하나로 처리해서 `pendingDeparture`는 늘 `null`. 방범대장 경험치는 7단계.
+
 ## 다음 단계에서 만들 묶음 (초안)
-- 마을(home), 스토리/의뢰, 모험, 일반전/랭크전, 환생, 방범대장, 상점/우편/일일
-- GMM110 원본 경로는 원본 `src/roster60-routes.ts`, `src/story/routes.ts`를 기준으로 옮겨요.
+- 일반전/랭크전, 환생, 방범대장, 상점/우편/일일

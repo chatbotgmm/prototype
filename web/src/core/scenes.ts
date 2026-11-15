@@ -7,7 +7,7 @@ let current:Scene|null=null,root:HTMLElement;
 export function register(name:string,make:()=>Scene){registry.set(name,make);}
 export function start(el:HTMLElement){root=el;}
 export async function go(name:string,params:any={}){
-  closeSheet();current?.unmount?.();root.replaceChildren();
+  closeSheet();document.querySelectorAll('.overlay-layer').forEach(e=>e.remove());current?.unmount?.();root.replaceChildren();
   const make=registry.get(name);if(!make)throw Error(`장면 없음: ${name}`);
   current=make();root.dataset.scene=name;
   try{await current.mount(root,params);}catch(e){console.error(e);toast('화면을 불러오지 못했어요.');}

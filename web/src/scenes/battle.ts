@@ -1,6 +1,6 @@
 // 전투. 원본 배치(ui-v3 전투 캡처): 위 막대(홈·턴 안내), 왼쪽 전장(상대 칸 왼쪽 위·내 칸 오른쪽 아래), 오른쪽 「행동 선택」 6버튼.
 // 명령 이름·순서: NativeRoster60Battle.java 461줄. 판정은 서버, 화면은 받은 사건(rounds)을 차례로 보여 주기만 함.
-import {h,button,unitArt,asset} from '../core/dom.js';
+import {h,button,unitArt,battleArt,asset} from '../core/dom.js';
 import {api,message,ApiError,type BattleView,type Fighter,type Skill} from '../core/api.js';
 import {go,toast,sheet,closeSheet,type Scene} from '../core/scenes.js';
 import {elementName,defenseName,resultLabel} from '../core/labels.js';
@@ -31,7 +31,7 @@ export const battle=():Scene=>{
       };
       const drawField=(fx?:{who:'self'|'enemy';kind:'hit'|'act'})=>{
         field.replaceChildren(
-          h('img',{class:`sprite sprite-enemy ${fx?.who==='enemy'?`fx-${fx.kind}`:''} ${shown.enemy.hp<=0?'fainted':''}`,src:unitArt(shown.enemy.speciesId,'front'),alt:shown.enemy.name}),
+          h('img',{class:`sprite sprite-enemy ${fx?.who==='enemy'?`fx-${fx.kind}`:''} ${shown.enemy.hp<=0?'fainted':''}`,src:battleArt(shown.enemy,'front'),alt:shown.enemy.name}),
           h('img',{class:`sprite sprite-self ${fx?.who==='self'?`fx-${fx.kind}`:''} ${shown.self.hp<=0?'fainted':''}`,src:unitArt(shown.self.speciesId,'rear'),alt:shown.self.name}),
           status(shown.enemy,'enemy'),status(shown.self,'self'));
       };
@@ -58,7 +58,7 @@ export const battle=():Scene=>{
           button('집중',()=>void send({kind:'focus'}),{kind:'switch',icon:'icon-shield',disabled:busy}),
           button('아이템',()=>{menu='item';drawCommands();},{kind:'item',icon:'icon-item',disabled:busy||!!view.disabledCommands.item}),
           button('교체',()=>{menu='switch';drawCommands();},{kind:'switch',icon:'icon-switch',disabled:busy||!s.reserves.some(r=>r.hp>0)}),
-          button('도망치기',()=>{const adv=s.mode==='adventure';sheet(adv?'모험 도망':'항복',h('p',{},adv?'도망칠까요? 성공 확률은 70%예요.':'항복할까요? 패배로 끝나고 경험치는 없어요.'),
+          button('도망치기',()=>{const adv=s.mode==='adventure';sheet(adv?'모험 도망':'항복',h('p',{},adv?'성공률 70%예요. 실패하면 상대만 행동해요. 성공해도 모험 보상은 정상 귀환 전까지 정산되지 않아요(원본 안내).':'항복할까요? 패배로 끝나고 경험치는 없어요.'),
             [button('취소',closeSheet),button(adv?'도망치기':'항복하기',()=>{closeSheet();void send({kind:'escape'});},{kind:'primary'})]);},{kind:'surrender',icon:'icon-surrender',disabled:busy||!!view.disabledCommands.escape}))];
         commands.replaceChildren(...body);
       };

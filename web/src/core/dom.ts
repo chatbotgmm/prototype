@@ -16,6 +16,11 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag:K,attrs:Record<stri
 export const BASE=(document.querySelector('meta[name="gmm-base"]') as HTMLMetaElement|null)?.content??'/proto';
 export const asset=(path:string)=>`${BASE}/assets/${path}`;
 export const unitArt=(speciesId:string,side:'front'|'rear')=>asset(`units/${speciesId}-${side}.webp`);
+// 스토리 전투 그림(원본 Roster60BattleAppearance·StoryBattleArt): 흑화 8종은 흑화 앞모습, 악당 5명은 사용자가 승인한 임시 대체 그림(기존 종 앞모습)
+const blackArt=new Set(['u01','u02','u06','u07','u14','u23','u28','u31']);
+const villainArt:Record<string,string>={story_record:'u01',story_guide:'u02',story_engineer:'u22',story_escort:'u03',story_dark_first:'u31'};
+export const battleArt=(f:{speciesId:string;artVariant?:string},side:'front'|'rear')=>
+  side==='front'&&f.artVariant==='black'&&blackArt.has(f.speciesId)?asset(`units/${f.speciesId}-black-front.webp`):unitArt(villainArt[f.speciesId]??f.speciesId,side);
 /** 버튼: 나인패치 종류(attack 빨강·switch 파랑·item 청록·surrender 크림)나 기본 남색 */
 export function button(label:Child|Child[],onClick:()=>void,opt:{kind?:'attack'|'switch'|'item'|'surrender'|'navy'|'primary'|'entry';disabled?:boolean;cls?:string;icon?:string;title?:string}={}){
   const b=h('button',{type:'button',class:`btn ${opt.kind?`btn-${opt.kind}`:'btn-navy'} ${opt.cls??''}`,disabled:opt.disabled,title:opt.title,onclick:(e:Event)=>{e.stopPropagation();onClick();}},

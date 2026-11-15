@@ -26,6 +26,8 @@ model Player {
   observed   ObservedDefense[]
   onboarding OnboardingState?
   recruits   RecruitSession[]
+  story      StoryAccount?
+  adventures Adventure[]
 }
 
 model LoginCode {
@@ -43,7 +45,7 @@ model Owned {
   speciesId            String
   totalXp              BigInt   @default(0)
   reincarnation        Int      @default(0)
-  status               String   @default("AVAILABLE") // AVAILABLE | BATTLE | ADVENTURE
+  status               String   @default("AVAILABLE") // AVAILABLE | BATTLE | ADVENTURE(모험 중)
   locked               Boolean  @default(false)
   source               String // 획득 경로(같은 경로로 두 번 지급하지 않게)
   skillInheritanceJson String? // 조합으로 물려받은 기술 한 칸
@@ -137,6 +139,37 @@ model RecruitSession {
   snapshot  String
   createdAt DateTime @default(now())
   player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, status])
+}
+
+// 스토리 진행(계정 하나에 하나, 원본 Roster60StoryAccount). state = shared StoryProgress JSON.
+// 흑화 재료(어둠의 새우Gang): 잔액·누적. 쓰는 곳(강화)은 원본에서도 아직 없음.
+model StoryAccount {
+  playerId         String @id
+  contentVersion   String
+  state            String
+  darkGangBalance  Int    @default(0)
+  darkGangLifetime Int    @default(0)
+  revision         Int    @default(0)
+  player           Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 모험 한 번(원본 Roster60Adventure). status: ACTIVE | RETURNED(정상 귀환) | LOST(전멸, 미정산 보상 잃음)
+// state = {party(전투 개체, 남은 체력), members(출발 때 경험치), storyQuestId?, commanderReturnEvidence}
+// pendingRewards = 귀환 때 받을 보상(전투마다 쌓임). 화면에서 보상 값을 받지 않음.
+model Adventure {
+  id             String   @id @default(uuid())
+  playerId       String
+  revision       Int      @default(0)
+  status         String   @default("ACTIVE")
+  activeBattleId String?
+  catalogVersion String
+  state          String
+  pendingRewards String
+  settlement     String?
+  createdAt      DateTime @default(now())
+  player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@index([playerId, status])
 }

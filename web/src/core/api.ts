@@ -9,6 +9,11 @@ const MESSAGES:Record<string,string>={
   ITEM_UNAVAILABLE:'아이템이 없어요.',INVALID_ITEM_TARGET:'그 대상에는 쓸 수 없어요.',NO_STATUS_TO_CLEANSE:'풀 상태 이상이 없어요.',
   FORCED_SWITCH_REQUIRED:'쓰러진 대원을 먼저 교체해 주세요.',STALE_REVISION:'화면이 오래됐어요. 다시 불러올게요.',BATTLE_FINISHED:'이미 끝난 전투예요.',
   INVALID_SWITCH:'교체할 수 없는 대원이에요.',SKILL_NOT_EQUIPPED:'쓸 수 없는 기술이에요.',NETWORK:'서버에 연결할 수 없어요.',
+  STORY_STALE_REVISION:'이야기 화면이 오래됐어요. 다시 불러올게요.',STORY_SCENE_LOCKED:'아직 들을 수 없는 이야기예요.',STORY_SCENE_ACTIVE:'읽던 이야기를 마치거나 닫은 뒤 열 수 있어요.',
+  STORY_ACCEPT_NOT_READY:'이야기를 끝까지 들은 뒤 수락할 수 있어요.',STORY_ACCEPT_REQUIRED:'의뢰를 수락해 주세요.',STORY_OBJECTIVE_INCOMPLETE:'아직 의뢰를 마치지 않았어요.',
+  STORY_QUEST_NOT_ACTIVE:'지금 출항할 수 있는 의뢰가 아니에요.',STORY_OBJECTIVE_AWAITING_RETURN:'이미 이겼어요. 모험에서 귀환하면 이야기가 이어져요.',STORY_BATTLE_ACTIVE:'끝나지 않은 스토리 전투가 있어요.',
+  STORY_ENCOUNTER_LOCKED:'아직 열리지 않은 모험이에요.',ADVENTURE_BATTLE_ACTIVE:'모험 전투가 진행 중이에요.',RETURN_ONLY_OUTSIDE_BATTLE:'전투가 끝난 뒤 귀환할 수 있어요.',
+  ACTIVE_UNIT_FAINTED:'쓰러진 대원은 먼저 나갈 수 없어요.',ADVENTURE_REQUIRED:'모험을 먼저 출발해 주세요.',ADVENTURE_NOT_FOUND:'모험을 찾을 수 없어요.',
 };
 export const message=(e:unknown)=>e instanceof ApiError?(MESSAGES[e.code]??`오류: ${e.code}`):MESSAGES.NETWORK;
 let seq=0;
@@ -25,8 +30,8 @@ async function call<T>(method:'GET'|'POST',path:string,body?:unknown):Promise<T>
 export type Stats={hp:number;mp:number;durability:number;statusResistance:number;speed:number};
 export type OwnedUnit={ownedId:string;speciesId:string;name:string;rarity:string;level:number;maxLevel:number;stats:Stats;reincarnation:number;status:string;locked:boolean};
 export type Skill={id:string;name:string;element:string;power:number;mpCost:number;learnLevel?:number};
-export type Fighter={ownedId?:string;speciesId:string;name:string;level:number;hp:number;mp:number;stats:Partial<Stats>&{hp:number;mp:number};attack:Skill;skills:Skill[];ownResistance?:Record<string,string>};
-export type BattleView={battleId:string;revision:number;status:'ACTIVE'|'FINISHED'|'SETTLED';testBaseline:boolean;
+export type Fighter={ownedId?:string;artVariant?:'black';speciesId:string;name:string;level:number;hp:number;mp:number;stats:Partial<Stats>&{hp:number;mp:number};attack:Skill;skills:Skill[];ownResistance?:Record<string,string>};
+export type BattleView={battleId:string;revision:number;status:'ACTIVE'|'FINISHED'|'SETTLED';testBaseline:boolean;adventureId:string|null;story:{questId:string|null;encounterId:string;kind:string}|null;
   state:{mode:string|null;turn:number;outcome:string|null;surrendered:boolean;self:Fighter;reserves:Fighter[];enemy:Fighter;
     opponentIntel:{statsKnown:boolean;defenses:Record<string,string>;knownDefenseCount:number;totalDefenseCount:number;defenseKnowledgeScope:string};
     rounds:{turn:number;events:any[]}[]};
@@ -48,6 +53,15 @@ export type InheritanceView={status:'selected'|'selection-required';candidates:{
 export type CraftPreview={resultId:string;resultName:string;resultRarity:string;expectedLevel:number;maxLevel:number;previewFingerprint:string;inheritance:InheritanceView;materialIds:string[]};
 export type Collection={catalogVersion:string;characters:{id:string;name:string;rarity:string;role:string;levelOneStats:Stats;suitability:Record<string,number>;skills:Skill[];ownedCount:number;discovered:boolean;
   defenseKnowledge:{defenses:Record<string,string>;knownDefenseCount:number;totalDefenseCount:number}}[]};
+
+export type QuestStatus='LOCKED'|'AVAILABLE'|'ACTIVE'|'READY'|'COMPLETED';
+export type StoryQuest={id:string;title:string;kind:'main'|'resident';chapter:number;status:QuestStatus;recommendedLevel:[number,number];npcId?:string;objective:{kind:string;wins:number;requiredWins:number};canDepart:boolean;adventureId:string|null;battleId:string|null};
+export type StoryState={contentVersion:string;revision:number;testValues:boolean;statue:{stage:number;fragments:number;hatched:boolean};currentQuest:StoryQuest|null;quests:StoryQuest[];
+  residents:{id:string;name:string;role:string;status:QuestStatus;questId:string|null;dailyDialogue:string}[];history:{questId:string;title:string}[];adventures:{id:string;name:string;level:number}[];
+  materialAdventure:{adventureId:string;status:string;activeBattleId:string|null;revision:number}|null;nextStoryHint:string|null;
+  scene:{id:string;questId:string;phase:'intro'|'return'|'replay';cursor:number;line:{speakerId:string;text:string;speakerName:string};last:boolean;background:string;camera:string|null}|null};
+export type Adventure={adventureId:string;revision:number;status:'ACTIVE'|'RETURNED'|'LOST';activeBattleId:string|null;kind:'free'|'material'|'quest';questId:string|null;
+  party:{ownedId:string;speciesId:string;name:string;level:number;hp:number;maxHp:number}[];pendingRewards:{xp:Record<string,number>};settlement:any};
 
 export const api={
   login:(code:string)=>call<{ok:true}>('POST','/auth/code',{code}),
@@ -72,7 +86,19 @@ export const api={
   saveParty:(ownedIds:string[])=>call<{ownedIds:string[]}>('POST','/party',{ownedIds}),
   battleOptions:()=>call<{encounters:{id:string;name:string;level:number;tutorial:boolean;mode:string|null}[]}>('GET','/battle/options'),
   activeBattles:()=>call<{battles:BattleView[]}>('GET','/battle/active'),
-  createBattle:(ownedId:string,encounterId:string,reserveIds:string[])=>call<BattleView>('POST','/battle',{requestId:requestId(),ownedId,encounterId,reserveIds}),
+  createBattle:(ownedId:string,encounterId:string,reserveIds:string[],adventureId?:string)=>call<BattleView>('POST','/battle',{requestId:requestId(),ownedId,encounterId,reserveIds,...(adventureId?{adventureId}:{})}),
+  story:()=>call<StoryState>('GET','/story'),
+  storyMaterials:()=>call<{name:string;balance:number;lifetimeEarned:number}>('GET','/story/materials'),
+  storyOpen:(s:StoryState,questId:string,phase:'intro'|'return'|'replay')=>call<StoryState>('POST','/story/open',{requestId:requestId(),revision:s.revision,questId,phase}),
+  storyAdvance:(s:StoryState)=>call<StoryState>('POST','/story/advance',{requestId:requestId(),revision:s.revision,cursor:s.scene!.cursor}),
+  storyAccept:(s:StoryState,questId:string)=>call<StoryState>('POST','/story/accept',{requestId:requestId(),revision:s.revision,questId}),
+  storyClose:(s:StoryState)=>call<StoryState>('POST','/story/close',{requestId:requestId(),revision:s.revision}),
+  storyBattle:(questId:string,ownedIds:string[],adventureId?:string)=>call<BattleView>('POST','/story/battle',{requestId:requestId(),questId,ownedIds,...(adventureId?{adventureId}:{})}),
+  materialBattle:(encounterId:string,ownedIds:string[],adventureId?:string)=>call<BattleView>('POST','/story/material-battle',{requestId:requestId(),encounterId,ownedIds,...(adventureId?{adventureId}:{})}),
+  adventures:()=>call<{adventures:Adventure[]}>('GET','/adventure/active'),
+  adventure:(id:string)=>call<Adventure>('GET',`/adventure/${id}`),
+  adventureStart:(ownedIds:string[])=>call<Adventure>('POST','/adventure/start',{requestId:requestId(),ownedIds}),
+  adventureReturn:(a:Adventure)=>call<Adventure>('POST',`/adventure/${a.adventureId}/return`,{requestId:requestId(),revision:a.revision}),
   battle:(id:string)=>call<BattleView>('GET',`/battle/${id}`),
   act:(b:BattleView,action:Record<string,unknown>)=>call<BattleView>('POST',`/battle/${b.battleId}/action`,{requestId:requestId(),revision:b.revision,action}),
   settle:(b:BattleView)=>call<BattleView>('POST',`/battle/${b.battleId}/settle`,{requestId:requestId(),revision:b.revision}),

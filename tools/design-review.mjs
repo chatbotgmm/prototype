@@ -109,6 +109,69 @@ for(const [name,w,h] of [['L',915,412],['W',1280,720],['S',780,360]]){
   await q.click('.times .btn >> nth=1');await q.click('.offer .btn-primary >> nth=0');await q.waitForSelector('.cand-card');await shot2('37-recruit-candidates');
   await q.click('.recruit-foot .btn-primary');await q.waitForSelector('.offer');await shot2('38-recruit-after');
   findings.push({label:`${name} 새 계정 스크립트 오류`,issues:errs2});await c2.close();
+  // 6단계(이야기 계정): 석상 → 장면 → 수락 → 외부 출항 → 흑화 모험 전투 → 결과 → 귀환 → 귀환 장면, 탐험(재료·자유 모험), 주민, 기록, 악당 전투
+  const k=['L','W','S'].indexOf(name);
+  const c3=await b.newContext({viewport:{width:w,height:h},deviceScaleFactor:1});const s=await c3.newPage();const errs3=[];s.on('pageerror',e=>errs3.push(e.message));s.on('response',r=>{if(r.status()>=500)errs3.push(`${r.status()} ${r.url()}`);});
+  const shot3=async(n)=>{await s.evaluate(()=>document.fonts.ready);await s.waitForTimeout(500);await s.screenshot({path:`${out}/${name}-${n}.png`});await check(s,`${name} ${w}×${h} ${n}`);};
+  const login=async(code)=>{await s.goto(B);await s.waitForSelector('.title-start');await s.click('.title-start');await s.waitForSelector('.code-input');await s.fill('.code-input',code);await s.click('.sheet-actions .btn-primary');await s.waitForSelector('.village-view');await s.waitForTimeout(800);};
+  const clickWorld=async(sel)=>{await s.evaluate(q=>document.querySelector(q).click(),sel);};
+  // 글자가 나오는 중에 누르면 첫 누름은 글자 다 보이기(원본 finishTyping)라서, 글자가 다 나온 뒤 누름
+  const typed=async(page)=>page.waitForFunction(()=>{const e=document.querySelector('.story-speech');return !e||e.dataset.typing!=='1';},null,{timeout:8000}).catch(()=>{});
+  const choice=async(text)=>{await s.waitForSelector(`.story-choices .btn >> text=${text}`);await typed(s);await s.click(`.story-choices .btn >> text=${text}`);};
+  const settleTyping=async()=>{await s.waitForTimeout(80);await s.click('.story-speech').catch(()=>{});await s.waitForTimeout(700);};
+  /** 장면을 마지막 줄까지(또는 끝까지) 넘기기. 「다음」이 typing 중이면 첫 누름은 글자 다 보이기 */
+  const throughScene=async(stopAtAccept)=>{for(let i=0;i<40;i++){await s.waitForTimeout(150);const label=await s.$eval('.story-choices .btn-primary',e=>e.textContent).catch(()=>null);if(!label)return;
+    if(!label.includes('다음')&&!label.includes('의뢰 수락'))return; // 장면이 끝나면 멈춤(다음 의뢰로 넘어가지 않게)
+    if(label.includes('의뢰 수락')&&stopAtAccept)return;await typed(s);await s.click('.story-choices .btn-primary');await s.waitForTimeout(250);}};
+  await login(String(300001+k*10));await shot3('40-story-village');
+  await clickWorld('[data-click="statue"]');await s.waitForSelector('.story-panel');await s.waitForTimeout(900);await shot3('41-statue');
+  await choice('이야기 듣기');await s.waitForTimeout(1200);await shot3('42-scene-narrator');
+  await s.click('.story-choices .btn-primary');await s.waitForTimeout(150);await s.click('.story-choices .btn-primary');await s.waitForTimeout(1500);await shot3('43-scene-hero');
+  await throughScene(true);await s.waitForTimeout(1200);await shot3('44-scene-accept');
+  await choice('의뢰 수락');await s.waitForTimeout(900);await shot3('45-statue-active');
+  await s.click('.story-close');await s.waitForTimeout(400);
+  await s.click('.nav-btn >> nth=3');await s.waitForTimeout(600);
+  await clickWorld('[data-click="harbor"]');await s.waitForSelector('.sheet');await shot3('46-harbor-menu');
+  await s.click('.sheet .menu-btn >> nth=1');await s.waitForSelector('.story-panel');await s.waitForTimeout(1200);await shot3('47-departure');
+  await choice('출항 준비');await s.waitForSelector('.party-scene .unit-card');
+  for(let i=0;i<2;i++)await s.click('.unit-card:not(.picked) .unit-pick:not([disabled]) >> nth=0');await shot3('48-depart-party');
+  await s.click('.save-btn');await s.waitForSelector('.cmd-grid');await shot3('49-black-battle');
+  await playToFinish(s);await s.click('.finish .btn');await s.waitForSelector('.result-panel');await shot3('50-story-result');
+  await s.click('.result-actions .btn-primary');await s.waitForSelector('.adventure-scene');await s.waitForFunction(()=>document.querySelector('.top-note')?.textContent?.includes('귀환'));await shot3('51-adventure-returned');
+  await s.click('.adventure-actions .btn-primary');await s.waitForSelector('.village-view');await s.waitForTimeout(800);
+  await clickWorld('[data-click="statue"]');await s.waitForSelector('.story-panel');await choice('귀환 이야기');await s.waitForTimeout(1000);await shot3('52-return-scene');
+  await throughScene(false);await s.waitForTimeout(900);await shot3('53-statue-next');await s.click('.story-close');await s.waitForTimeout(400);
+  await clickWorld('[data-click="harbor"]');await s.waitForSelector('.sheet');await s.click('.sheet .menu-btn >> nth=0');await s.waitForSelector('.story-panel');await s.waitForTimeout(1000);await shot3('54-exploration');
+  await choice('흑화 갈매미 모험');await s.waitForTimeout(900);await shot3('55-material-list');await choice('뒤로');
+  await choice('자유 탐험');await s.waitForSelector('.party-scene .unit-card');
+  while(await s.$('.slot-remove'))await s.click('.slot-remove >> nth=0');
+  for(let i=0;i<3;i++)await s.click('.unit-card:not(.picked) .unit-pick:not([disabled]) >> nth=0');
+  await s.click('.save-btn');await s.waitForSelector('.adventure-scene');await shot3('56-adventure-active');
+  await s.click('.adventure-actions .btn-primary');await s.waitForSelector('.sheet');await shot3('57-adventure-lead');
+  await s.click('.sheet .menu-btn >> nth=0');await s.waitForSelector('.cmd-grid');await playToFinish(s);await s.click('.finish .btn');await s.waitForSelector('.result-panel');await shot3('58-adventure-result');
+  await s.click('.result-actions .btn-primary');await s.waitForSelector('.adventure-scene');await shot3('59-adventure-after-battle');
+  await s.click('.adventure-actions .btn >> text=정상 귀환');await s.waitForFunction(()=>document.querySelector('.top-note')?.textContent?.includes('귀환'));await shot3('60-adventure-returned-free');
+  await s.click('.adventure-actions .btn-primary');await s.waitForSelector('.village-view');await s.waitForTimeout(700);
+  await clickWorld('[data-click="archive"]');await s.waitForSelector('.sheet');await s.click('.sheet .menu-btn >> text=이야기 기록');await s.waitForSelector('.story-panel');await s.waitForTimeout(900);await shot3('61-history');
+  await s.click('.story-close');await s.waitForTimeout(300);
+  await clickWorld('[data-click="resident:blacksmith"]');await s.waitForSelector('.story-panel');await s.waitForTimeout(1500);await shot3('62-resident-blacksmith');
+  findings.push({label:`${name} 이야기 계정 스크립트 오류`,issues:errs3});await c3.close();
+  // 중반 계정: 주민 부탁(상인) 장면 · 악당 의뢰 출항 → 악당 전투
+  const c4=await b.newContext({viewport:{width:w,height:h},deviceScaleFactor:1});const m=await c4.newPage();const errs4=[];m.on('pageerror',e=>errs4.push(e.message));m.on('response',r=>{if(r.status()>=500)errs4.push(`${r.status()} ${r.url()}`);});
+  const shot4=async(n)=>{await m.evaluate(()=>document.fonts.ready);await m.waitForTimeout(500);await m.screenshot({path:`${out}/${name}-${n}.png`});await check(m,`${name} ${w}×${h} ${n}`);};
+  await m.goto(B);await m.waitForSelector('.title-start');await m.click('.title-start');await m.waitForSelector('.code-input');await m.fill('.code-input',String(300006+k*10));await m.click('.sheet-actions .btn-primary');await m.waitForSelector('.village-view');await m.waitForTimeout(900);
+  await shot4('63-mid-village');
+  await m.evaluate(()=>document.querySelector('[data-click="resident:merchant"]').click());await m.waitForSelector('.story-panel');await m.waitForTimeout(1200);await shot4('64-resident-merchant');
+  await m.waitForSelector('.story-choices .btn >> text=부탁 듣기');await typed(m);await m.click('.story-choices .btn >> text=부탁 듣기');await m.waitForTimeout(400);
+  for(let i=0;i<8;i++){const who=await m.$eval('.story-name',e=>e.textContent).catch(()=>'');if(who==='모아')break;await m.click('.story-choices .btn-primary');await m.waitForTimeout(150);await m.click('.story-choices .btn-primary').catch(()=>{});await m.waitForTimeout(300);}
+  await m.waitForTimeout(1500);await shot4('65-resident-scene');
+  await m.click('.story-close');await m.waitForTimeout(500);
+  await m.evaluate(()=>document.querySelector('[data-click="statue"]').click());await m.waitForSelector('.story-panel');await m.waitForSelector('.story-choices .btn >> text=이야기 듣기');await typed(m);await m.click('.story-choices .btn >> text=이야기 듣기');await m.waitForTimeout(300);
+  for(let i=0;i<40;i++){const label=await m.$eval('.story-choices .btn-primary',e=>e.textContent).catch(()=>null);if(!label||label.includes('의뢰 수락'))break;await m.click('.story-choices .btn-primary');await m.waitForTimeout(100);await m.click('.story-choices .btn-primary').catch(()=>{});await m.waitForTimeout(200);}
+  await m.waitForSelector('.story-choices .btn >> text=의뢰 수락');await typed(m);await m.click('.story-choices .btn >> text=의뢰 수락');await m.waitForTimeout(600);await m.click('.story-close');await m.waitForTimeout(400);
+  await m.evaluate(()=>document.querySelector('[data-click="harbor"]').click());await m.waitForSelector('.sheet');await m.click('.sheet .menu-btn >> nth=1');await m.waitForSelector('.story-panel');
+  await m.waitForSelector('.story-choices .btn >> text=출항 준비');await typed(m);await m.click('.story-choices .btn >> text=출항 준비');await m.waitForSelector('.party-scene .unit-card');await m.click('.unit-card:not(.picked) .unit-pick:not([disabled]) >> nth=0');await m.click('.save-btn');await m.waitForSelector('.cmd-grid');await shot4('66-villain-battle');
+  findings.push({label:`${name} 중반 계정 스크립트 오류`,issues:errs4});await c4.close();
 }
 await b.close();
 writeFileSync(`${out}/findings.json`,JSON.stringify(findings,null,1));

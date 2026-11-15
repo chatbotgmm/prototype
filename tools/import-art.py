@@ -33,6 +33,15 @@ for n in range(1, 61):
         im = Image.open(f'{SRC}/app/android/app/src/main/assets/roster60-art/u{n:02d}-{side}.webp').convert('RGBA')
         save(im, f'units/u{n:02d}-{side}.webp', max_side=512, quality=84)
 
+# 1-1) 흑화 갈매미 앞모습 8장 (앱: 빌드 때 scripts/bundle-story-black-art.py가 art/gpt/blackened-gulls-20261028/uXX-black-front.png를
+#      roster60-art/black/uXX-front.png로 그대로 복사, Roster60BattleAppearance.java가 흑화 적일 때 읽음). 해시는 data/story/black-art-v1.json과 대조.
+import hashlib
+for e in json.load(open(os.path.join(OUT, '..', 'data/story/black-art-v1.json')))['entries']:
+    p = f"{SRC}/art/gpt/blackened-gulls-20261028/{e['speciesId']}-black-front.png"
+    if hashlib.sha256(open(p, 'rb').read()).hexdigest() != e['sha256']: raise SystemExit(p + ': 해시 불일치')
+    save(Image.open(p).convert('RGBA'), f"units/{e['speciesId']}-black-front.webp", max_side=512, quality=84)
+# (악당 5명 그림은 원본에서 기존 종 앞모습을 그대로 쓰는 임시 대체라 새 파일 없음: data/story/battle-art-v1.json, StoryBattleArt.java)
+
 # 2) 마을 (앱: NativeVillageHomeView + manifest. 빌드 때 build.gradle bundleGameArt가 art/gpt에서 복사)
 m = json.load(open(MANIFEST))
 src_of = {  # manifest의 빌드 결과 이름 → 원본 위치(build.gradle의 from/rename 규칙으로 확인)

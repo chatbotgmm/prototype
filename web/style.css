@@ -266,3 +266,42 @@ img{user-select:none;-webkit-user-drag:none}
 .owned-detail p{margin:0}
 .owned-buttons{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:.4em;min-height:0}
 .owned-buttons .btn{font-size:1.15em;min-height:56px}
+
+/* 6단계: 석상·주민 누르기 */
+.v-statue-btn,.v-resident-btn{position:absolute;pointer-events:auto;background:none;border:0;padding:0;cursor:pointer}
+.v-statue-btn .v-img,.v-resident-btn .v-img{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.v-statue-btn:focus-visible,.v-resident-btn:focus-visible{outline:3px solid #8edaff;border-radius:8px}
+.v-mark{position:absolute;left:50%;top:-1.7em;transform:translateX(-50%);width:1.6em;height:1.6em;border-radius:50%;background:linear-gradient(#f6e3b4,#d9bb7f);color:#2a1d0c;border:2px solid #8f6a32;font-family:Jua,sans-serif;display:flex;align-items:center;justify-content:center;z-index:2}
+
+/* 이야기 창(원본 NativeVillageStoryOverlay): 마을 위에 엷게, 아래쪽 초상 34% + 대화 66%, 대화 칸 남색(0xf2102433)·금테 */
+.story-overlay{position:fixed;inset:0;background:rgba(0,0,0,.14);z-index:30}
+.story-row{position:absolute;inset:0;display:flex;align-items:flex-end;gap:10px;padding:14px 18px}
+.story-art{flex:0 0 34%;height:100%;display:flex;align-items:flex-end;justify-content:center;pointer-events:none}
+.story-art img{max-width:100%;max-height:92%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.45))}
+.story-panel{flex:1;background:rgba(16,36,51,.95);border:2px solid var(--edge);border-radius:12px;padding:.55em .9em .7em;display:flex;flex-direction:column;gap:.25em;box-shadow:0 4px 14px rgba(0,0,0,.4);min-width:0}
+.story-panel-wide{background:var(--panel)}
+.story-name{color:#ffd58c;font-family:Jua,sans-serif;font-size:1.1em;min-height:1.2em}
+.story-speech{color:#fff1d2;font-size:1.05em;line-height:1.45;white-space:pre-line;height:clamp(3.2em,26vh,7.6em);overflow-y:auto}
+.story-panel-wide .story-speech{height:auto;max-height:3.2em}
+.story-notice{color:var(--muted);font-size:.8em;min-height:1.1em}
+.story-choices{display:flex;gap:6px}
+.story-choices .story-btn{flex:1;min-width:0}
+.story-list{flex-direction:column;max-height:calc(48px * 3 + 12px);overflow-y:auto}
+.story-list .story-btn{flex:none;width:100%;justify-content:flex-start}
+.story-close{position:absolute;top:10px;right:12px;width:48px;font-size:1.4em}
+
+/* 모험 상태 */
+.adventure-scene{position:absolute;inset:0;display:flex;flex-direction:column;background:#0b1e2a center/cover}
+.adventure-body{flex:1;display:flex;flex-direction:column;gap:8px;padding:10px 14px;min-height:0}
+.adventure-head{margin:0;padding:.45em .8em}
+.adventure-party{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:0}
+.adv-unit{display:flex;flex-direction:column;align-items:center;padding:.4em;min-height:0}
+.adv-unit img{flex:1;min-height:0;width:100%;object-fit:contain}
+.adv-unit.fainted img{filter:grayscale(1) brightness(.6)}
+.adv-text{width:100%;display:flex;flex-direction:column;gap:3px}
+.adv-text small{font-size:.78em;color:var(--muted)}
+.adventure-actions{display:flex;gap:8px;justify-content:center}
+.adventure-actions .btn{min-width:9em}
+.drop{color:var(--gold-edge)}
+/* 이야기 창이 열려 있으면 뒤의 마을 「설정」 버튼을 숨김(창의 닫기 버튼과 겹쳐 보이지 않게) */
+body:has(.story-overlay) .hud-settings{visibility:hidden}
