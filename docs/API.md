@@ -123,5 +123,16 @@
 - `GET /rebirth` → `{catalogVersion, peanut, candidates:[{ownedId, speciesId, name, eligible, reason, requiredLevel, preview:{beforeLevel, baselineLevelOneStats, afterLevelOneStats, next}, costPeanut, accountFreeAvailable, previewFingerprint}]}`
 - `POST /rebirth/confirm` `{requestId, ownedId, catalogVersion, previewFingerprint}` → 환생 결과(`completed:true, paidPeanut`). 오류: `REINCARNATION_REQUIREMENTS_NOT_MET`·`REINCARNATION_GRADE_NOT_ALLOWED`·`INSUFFICIENT_PEANUT`·`PREVIEW_CHANGED`.
 
+## 일반전·랭크전 (구현됨, 원본 roster60-pvp.ts)
+- `GET /pvp/options` → `{units(쓸 수 있는 대원과 랭크 가능 여부), partyIds, rankEligibility:{eligible, reason, accountLevel, requiredAccountLevel:60, requiredUnitLevel:60, pool}, commander}`
+- `POST /pvp/party` `{ownedIds(1~3), mode?}` — 대전 편성 저장(랭크면 자격 확인). 대기 중이면 `PVP_BUSY`.
+- `POST /pvp/join` `{requestId, mode:'normal'|'rank'}` → 현재 상태. `GET /pvp/current` → `{status:'idle'|'waiting'|'matched', queuedAt, aiAvailableAt(일반전: 대기 30초 뒤), battle?}`. 조회하면 대기 자리가 45초 연장돼요.
+- `POST /pvp/cancel` `{requestId}` · `POST /pvp/accept` `{requestId, battleId, revision, accept}`(10초 안에 둘 다) · `POST /pvp/action` `{requestId, battleId, revision, action}`(턴마다 30초) · `POST /pvp/settle` `{requestId, battleId, revision}`(결과 확인)
+- 대전 화면 값 = 전투 화면과 같은 모양 + `pvp:true, mode, opponentKind:'AI'|'HUMAN', deadline, serverNow, accepted, opponentAccepted, submitted, waitingForOpponent, presence:{status:'CONNECTED'|'RECONNECT_GRACE'|…}`.
+  상대의 대기 대원·고른 행동·씨앗은 보이지 않아요.
+- 정산(`settlement`): `{winner, reason:'BATTLE'|'SURRENDER'|'TIMEOUT'|'DOUBLE_TIMEOUT'|'MATCH_TIMEOUT'|'MATCH_DECLINED'|'SERVER_ABORT', xpAwarded, normalXp:{status, units}, commanderReward, rating(내 점수 변화), lossFeedback, terminationKind}`
+- `GET /pvp/rank` → `{me:{point(LP), tier, tierName, wins, losses, rank, promotion}, top(상위 20), tiers}`
+- 서버는 1초마다 대기열 정리·일반전 AI 매칭·시간이 지난 방 진행을 해요.
+
 ## 다음 단계에서 만들 묶음 (초안)
-- 일반전/랭크전(7-2), 상점/우편/일일(8)
+- 상점/우편/일일(8)

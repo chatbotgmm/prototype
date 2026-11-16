@@ -11,14 +11,15 @@ import {AcquisitionService} from './acquisition-service.js';
 import {AdventureService} from './adventure-service.js';
 import {StoryService} from './story-service.js';
 import {RebirthService,readCommanderState} from './progression-service.js';
+import {PvpService} from './pvp-service.js';
 import {serial} from './receipts.js';
 import {registerStatic} from './static.js';
 
-export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;now?:()=>number;/** 시험용: 모집 굴림 주입 */roll?:(max:number)=>number};
+export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;now?:()=>number;/** 시험용: 모집 굴림 주입 */roll?:(max:number)=>number;/** 대전 1초 처리 타이머(시험에서는 끄고 직접 부름) */pvpTimer?:boolean};
 export async function buildApp(db:PrismaClient,opt:AppOptions){
   const base=(opt.basePath??'/proto').replace(/\/$/,''),api=`${base}/api/v1`,now=opt.now??Date.now;
   const content=loadContent(opt.root),battles=new BattleService(db,content),acquisition=new AcquisitionService(db,content,opt.roll),sessions=sessionSigner(opt.secret);
-  const adventures=new AdventureService(db,content,u=>battles.ownedFighter(u)),story=new StoryService(db,content,battles,adventures),rebirth=new RebirthService(db,content);
+  const adventures=new AdventureService(db,content,u=>battles.ownedFighter(u)),story=new StoryService(db,content,battles,adventures),rebirth=new RebirthService(db,content),pvp=new PvpService(db,content,now);
   const app=Fastify({logger:opt.log??false,bodyLimit:8192});
   app.setErrorHandler((e,_req,reply)=>{
     if(e instanceof ApiError)return reply.code(e.status).send({error:e.code});
@@ -143,5 +144,23 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
   route('GET','/commander',async id=>readCommanderState(db,id,content.commander));
   route('GET','/rebirth',async id=>rebirth.preview(id));
   route('POST','/rebirth/confirm',async(id,req)=>rebirth.confirm(id,z.object({requestId,ownedId:z.string().min(1).max(100),catalogVersion:z.string().min(1).max(100),previewFingerprint:z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body)));
+
+  // ── 대전(원본 pvp/*): 일반전·랭크전
+  const pvpMode=z.enum(['normal','rank']),pvpBattle=z.string().uuid();
+  const pvpAction=z.object({kind:z.enum(['attack','skill','focus','switch','item','escape']),skillId:z.string().min(1).max(100).optional(),itemId:z.string().min(1).max(100).optional(),targetOwnedId:z.string().min(1).max(100).optional()}).strict();
+  route('GET','/pvp/options',async id=>pvp.options(id));
+  route('POST','/pvp/party',async(id,req)=>{const b=z.object({ownedIds:z.array(z.string().min(1).max(100)).min(1).max(3),mode:pvpMode.optional()}).strict().parse(req.body);return pvp.party(id,b.ownedIds,b.mode);});
+  route('POST','/pvp/join',async(id,req)=>pvp.join(id,z.object({requestId,mode:pvpMode}).strict().parse(req.body)));
+  route('POST','/pvp/cancel',async(id,req)=>pvp.cancel(id,z.object({requestId}).strict().parse(req.body)));
+  route('GET','/pvp/current',async id=>pvp.current(id));
+  route('POST','/pvp/accept',async(id,req)=>pvp.accept(id,z.object({requestId,battleId:pvpBattle,revision,accept:z.boolean()}).strict().parse(req.body)));
+  route('POST','/pvp/action',async(id,req)=>pvp.action(id,z.object({requestId,battleId:pvpBattle,revision,action:pvpAction}).strict().parse(req.body)));
+  route('POST','/pvp/settle',async(id,req)=>pvp.settle(id,z.object({requestId,battleId:pvpBattle,revision}).strict().parse(req.body)));
+  route('GET','/pvp/rank',async id=>pvp.rank(id));
+  // 1초마다 대기열 정리·일반전 AI 매칭·시간이 지난 방 진행(원본 roster60-routes의 pvp.tick 타이머)
+  let timer:ReturnType<typeof setInterval>|undefined,work:Promise<unknown>|undefined;
+  if(opt.pvpTimer!==false){app.addHook('onReady',async()=>{timer=setInterval(()=>{if(work)return;work=pvp.tick().catch(e=>app.log.error(e)).finally(()=>{work=undefined;});},1000);timer.unref();});
+    app.addHook('onClose',async()=>{if(timer)clearInterval(timer);await work;});}
+  app.decorate('pvp',pvp);
   return app;
 }

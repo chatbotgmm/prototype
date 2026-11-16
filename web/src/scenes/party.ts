@@ -9,8 +9,9 @@ import {depart,departureTitle,type Departure} from '../core/expedition.js';
 import {unitDetailBody} from '../core/unitview.js';
 
 export const party=():Scene=>({
-  async mount(root,params:{next?:string;depart?:Departure}={}){
-    const [{units},saved]=await Promise.all([api.owned(),api.party()]);
+  async mount(root,params:{next?:string;depart?:Departure;pvp?:'normal'|'rank'}={}){
+    // 대전 편성(params.pvp): 대전용 편성을 따로 저장(원본 roster60PvpParty)
+    const [{units},saved]=await Promise.all([api.owned(),params.pvp?api.pvpOptions().then(o=>({ownedIds:o.partyIds})):api.party()]);
     const going=params.depart;
     let picked=saved.ownedIds.filter(id=>units.some(u=>u.ownedId===id&&(!going||u.status==='AVAILABLE'))),page=0,sending=false;
     const scene=h('div',{class:'party-scene'});root.append(scene);
@@ -33,11 +34,12 @@ export const party=():Scene=>({
             at>=0?h('span',{class:'pick-badge'},at===0?'출전':`예비 ${at}`):null),
           button('정보',()=>void openDetail(u),{cls:'unit-info',title:`${u.name} 정보`}));};
       scene.replaceChildren(
-        h('header',{class:'top-bar'},button('마을',()=>go('village'),{icon:'icon-back'}),h('h1',{},going?'출항 편성':'방범대 편성'),
+        h('header',{class:'top-bar'},button(params.pvp?'뒤로':'마을',()=>params.pvp?go('pvp',{mode:params.pvp}):go('village'),{icon:'icon-back'}),h('h1',{},going?'출항 편성':params.pvp?'대전 편성':'방범대 편성'),
           h('span',{class:'muted top-note'},going?`${departureTitle(going)}${going.type==='quest'&&going.recommended?` · 권장 Lv${going.recommended[0]}~${going.recommended[1]}`:''} · 1~3마리`:'1~3마리 · 첫 칸이 출전')),
         h('div',{class:'party-body'},
           h('section',{class:'party-slots'},slot(0),slot(1),slot(2),
             going?button('출항',async()=>{if(sending)return;sending=true;render();await depart(going,picked);sending=false;if(root.isConnected)render();},{kind:'primary',disabled:!picked.length||sending,cls:'save-btn'})
+              :params.pvp?button('대전 편성 저장',async()=>{try{await api.pvpParty(picked,params.pvp);toast('편성 저장 완료 · 진행을 누르면 대전을 시작해요.');go('pvp',{mode:params.pvp});}catch(e){toast(message(e));}},{kind:'primary',disabled:!picked.length,cls:'save-btn'})
               :button('편성 저장',async()=>{try{await api.saveParty(picked);toast('편성을 저장했어요.');if(params.next)go(params.next);}catch(e){toast(message(e));}},{kind:'primary',disabled:!picked.length,cls:'save-btn'})),
           h('section',{class:'party-list'},
             h('div',{class:'unit-grid',style:{gridTemplateColumns:`repeat(${grid().cols},1fr)`}},...units.slice(page*n,page*n+n).map(card)),

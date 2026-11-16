@@ -32,6 +32,10 @@ model Player {
   commander  CommanderAccount?
   commanderLedger CommanderXpLedger[]
   rebirth    RebirthAccount?
+  pvpParty   PvpParty?
+  pvpQueue   PvpQueue?
+  ranked     RankedProfile?
+  casual     CasualRating?
 }
 
 model LoginCode {
@@ -49,7 +53,7 @@ model Owned {
   speciesId            String
   totalXp              BigInt   @default(0)
   reincarnation        Int      @default(0)
-  status               String   @default("AVAILABLE") // AVAILABLE | BATTLE | ADVENTURE(모험 중)
+  status               String   @default("AVAILABLE") // AVAILABLE | BATTLE | ADVENTURE(모험 중) | PVP_QUEUE(대전 대기) | PVP(대전 중)
   locked               Boolean  @default(false)
   source               String // 획득 경로(같은 경로로 두 번 지급하지 않게)
   skillInheritanceJson String? // 조합으로 물려받은 기술 한 칸
@@ -215,4 +219,88 @@ model RebirthAccount {
   playerId  String @id
   successes Int    @default(0)
   player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// ── 대전(원본 Roster60PvpParty·Roster60PvpQueue·Roster60PvpMatch, RankedProfile·CasualHumanRating) ──
+// 대전 편성(일반·랭크 같이 씀, 1~3마리)
+model PvpParty {
+  playerId String @id
+  ownedIds String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 대기열 한 줄. 들어올 때 정해 둔 값(점수·등급·환생 이력 묶음·일반전 경험치 계획·방범대장 정책·랭크 자격)을 고정해 둠
+model PvpQueue {
+  playerId      String   @id
+  mode          String // normal | rank
+  rating        Int
+  tierIndex     Int
+  ownedIds      String
+  queuedAt      DateTime
+  leaseUntil    DateTime // 45초 안에 다시 조회하지 않으면 대기열에서 빠짐
+  normalXp      String?
+  commander     String?
+  rankAdmission String?
+  pool          String? // FIRST_LIFE | REBORN
+  rebirthCount  Int?
+  countSource   String?
+  historyStamp  String?
+  player        Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([mode, queuedAt])
+}
+
+// 대전 방. player1Id가 'AI:<방 id>'면 AI 상대. status: ACCEPTING(수락 대기 10초) | ACTIVE | FINISHED | SETTLED
+model PvpMatch {
+  id         String   @id
+  player0Id  String
+  player1Id  String
+  mode       String
+  status     String   @default("ACCEPTING")
+  revision   Int      @default(0)
+  seed       String
+  snapshot   String
+  state      String
+  presence   String?
+  deadline   DateTime
+  settlement String?
+  createdAt  DateTime @default(now())
+
+  @@index([status, deadline])
+  @@index([player0Id])
+  @@index([player1Id])
+}
+
+model RankedProfile {
+  playerId          String @id
+  tierIndex         Int     @default(0)
+  lp                Int     @default(0)
+  promotionActive   Boolean @default(false)
+  promotionWins     Int     @default(0)
+  promotionLosses   Int     @default(0)
+  rankedMmr         Float   @default(1000)
+  casualPriorOffset Float   @default(0)
+  games             Int     @default(0)
+  wins              Int     @default(0)
+  losses            Int     @default(0)
+  draws             Int     @default(0)
+  version           Int     @default(0)
+  player            Player  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model CasualRating {
+  playerId String @id
+  mmr      Float  @default(1000)
+  games    Int    @default(0)
+  wins     Int    @default(0)
+  losses   Int    @default(0)
+  draws    Int    @default(0)
+  version  Int    @default(0)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 서버 공용 값(접속 판정 관측 기록 등)
+model KeyValue {
+  key   String @id
+  value String
 }

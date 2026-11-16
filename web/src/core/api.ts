@@ -9,6 +9,9 @@ const MESSAGES:Record<string,string>={
   ITEM_UNAVAILABLE:'아이템이 없어요.',INVALID_ITEM_TARGET:'그 대상에는 쓸 수 없어요.',NO_STATUS_TO_CLEANSE:'풀 상태 이상이 없어요.',
   FORCED_SWITCH_REQUIRED:'쓰러진 대원을 먼저 교체해 주세요.',STALE_REVISION:'화면이 오래됐어요. 다시 불러올게요.',BATTLE_FINISHED:'이미 끝난 전투예요.',
   INVALID_SWITCH:'교체할 수 없는 대원이에요.',SKILL_NOT_EQUIPPED:'쓸 수 없는 기술이에요.',NETWORK:'서버에 연결할 수 없어요.',
+  PARTY_REQUIRED:'대전 편성을 먼저 저장해 주세요.',PVP_BUSY:'대전 대기 중이거나 확인하지 않은 대전이 있어요.',RANK_ACCOUNT_LEVEL_REQUIRED:'랭크는 방범대장 Lv.60부터예요.',
+  RANK_UNIT_LEVEL_REQUIRED:'랭크 출전 대원은 모두 Lv.60 이상이어야 해요.',ACTION_ALREADY_SUBMITTED:'이미 행동을 골랐어요. 상대를 기다려요.',OPPONENT_FORCED_SWITCH:'상대가 교체할 때까지 기다려요.',
+  BATTLE_ACTIVE:'대전 대기 중이거나 대전 중이라 지금은 할 수 없어요.',MATCH_POOL_CLASS_CHANGED:'환생 상태가 바뀌었어요. 매칭을 취소하고 다시 참가해 주세요.',
   REINCARNATION_REQUIREMENTS_NOT_MET:'레벨이 모자라요.',REINCARNATION_GRADE_NOT_ALLOWED:'제한·초월·불멸·영원 등급만 환생할 수 있어요.',REINCARNATION_LIMIT:'환생은 5번까지예요.',
   INSUFFICIENT_PEANUT:'땅콩이 모자라요.',PREVIEW_CHANGED:'정보가 바뀌었어요. 다시 확인해 주세요.',
   STORY_STALE_REVISION:'이야기 화면이 오래됐어요. 다시 불러올게요.',STORY_SCENE_LOCKED:'아직 들을 수 없는 이야기예요.',STORY_SCENE_ACTIVE:'읽던 이야기를 마치거나 닫은 뒤 열 수 있어요.',
@@ -33,7 +36,8 @@ export type Stats={hp:number;mp:number;durability:number;statusResistance:number
 export type OwnedUnit={ownedId:string;speciesId:string;name:string;rarity:string;level:number;maxLevel:number;stats:Stats;reincarnation:number;status:string;locked:boolean};
 export type Skill={id:string;name:string;element:string;power:number;mpCost:number;learnLevel?:number};
 export type Fighter={ownedId?:string;artVariant?:'black';speciesId:string;name:string;level:number;hp:number;mp:number;stats:Partial<Stats>&{hp:number;mp:number};attack:Skill;skills:Skill[];ownResistance?:Record<string,string>};
-export type BattleView={battleId:string;revision:number;status:'ACTIVE'|'FINISHED'|'SETTLED';testBaseline:boolean;adventureId:string|null;story:{questId:string|null;encounterId:string;kind:string}|null;
+export type BattleView={battleId:string;revision:number;status:'ACCEPTING'|'ACTIVE'|'FINISHED'|'SETTLED';testBaseline:boolean;
+  pvp?:boolean;mode?:string;opponentKind?:'AI'|'HUMAN';deadline?:number;serverNow?:number;accepted?:boolean;opponentAccepted?:boolean;submitted?:boolean;waitingForOpponent?:boolean;requeued?:boolean;presence?:{status:string;ownGraceUntil?:number;opponentGraceUntil?:number};adventureId:string|null;story:{questId:string|null;encounterId:string;kind:string}|null;
   state:{mode:string|null;turn:number;outcome:string|null;surrendered:boolean;self:Fighter;reserves:Fighter[];enemy:Fighter;
     opponentIntel:{statsKnown:boolean;defenses:Record<string,string>;knownDefenseCount:number;totalDefenseCount:number;defenseKnowledgeScope:string};
     rounds:{turn:number;events:any[]}[]};
@@ -69,6 +73,11 @@ export type Commander={name:string;level:number|null;totalXp:string|null;nextLev
 export type RebirthCandidate={ownedId:string;speciesId:string;name:string;eligible:boolean;reason:string;requiredLevel?:number;costPeanut?:number;accountFreeAvailable?:boolean;previewFingerprint?:string;
   preview:{beforeLevel:number;baselineLevelOneStats:Stats;afterLevelOneStats:Stats;next:{level:number;maxLevel:number;reincarnation:number}}|null};
 export type RebirthPreview={catalogVersion:string;peanut:number;candidates:RebirthCandidate[]};
+export type PvpCurrent={status:'idle'|'waiting'|'matched';mode?:'normal'|'rank';partyIds?:string[];queuedAt?:number|null;aiAvailableAt?:number|null;cancelAllowed?:boolean;serverNow:number;battle?:BattleView;matchPoolCondition?:string|null;rankCondition?:string|null};
+export type RankEligibility={eligible:boolean;reason:string;accountLevel:number|null;requiredAccountLevel:60;requiredUnitLevel:60;pool:string|null};
+export type PvpOptions={units:{ownedId:string;speciesId:string;name:string;rarity:string;level:number;rankEligible:boolean}[];partyIds:string[];rankEligibility:RankEligibility;commander:Commander};
+export type RankSummary={me:{point:number;tierName:string;tierIndex:number;wins:number;losses:number;draws:number;rank:number|null;promotion:{active:boolean;wins:number;losses:number;requiredWins:number;maxGames:number}};win:number;lose:number;
+  top:{rank:number;nickname:string;point:number;tierName:string;wins:number;losses:number}[]};
 export const api={
   login:(code:string)=>call<{ok:true}>('POST','/auth/code',{code}),
   logout:()=>call<{ok:true}>('POST','/auth/logout',{}),
@@ -96,6 +105,15 @@ export const api={
   battleOptions:()=>call<{encounters:{id:string;name:string;level:number;tutorial:boolean;mode:string|null}[]}>('GET','/battle/options'),
   activeBattles:()=>call<{battles:BattleView[]}>('GET','/battle/active'),
   createBattle:(ownedId:string,encounterId:string,reserveIds:string[],adventureId?:string)=>call<BattleView>('POST','/battle',{requestId:requestId(),ownedId,encounterId,reserveIds,...(adventureId?{adventureId}:{})}),
+  pvpOptions:()=>call<PvpOptions>('GET','/pvp/options'),
+  pvpParty:(ownedIds:string[],mode?:'normal'|'rank')=>call<{partyIds:string[]}>('POST','/pvp/party',{ownedIds,...(mode?{mode}:{})}),
+  pvpJoin:(mode:'normal'|'rank')=>call<PvpCurrent>('POST','/pvp/join',{requestId:requestId(),mode}),
+  pvpCancel:()=>call<PvpCurrent>('POST','/pvp/cancel',{requestId:requestId()}),
+  pvpCurrent:()=>call<PvpCurrent>('GET','/pvp/current'),
+  pvpAccept:(b:BattleView,accept:boolean)=>call<BattleView>('POST','/pvp/accept',{requestId:requestId(),battleId:b.battleId,revision:b.revision,accept}),
+  pvpAct:(b:BattleView,action:Record<string,unknown>)=>call<BattleView>('POST','/pvp/action',{requestId:requestId(),battleId:b.battleId,revision:b.revision,action}),
+  pvpSettle:(b:BattleView)=>call<BattleView>('POST','/pvp/settle',{requestId:requestId(),battleId:b.battleId,revision:b.revision}),
+  pvpRank:()=>call<RankSummary>('GET','/pvp/rank'),
   story:()=>call<StoryState>('GET','/story'),
   storyMaterials:()=>call<{name:string;balance:number;lifetimeEarned:number}>('GET','/story/materials'),
   storyOpen:(s:StoryState,questId:string,phase:'intro'|'return'|'replay')=>call<StoryState>('POST','/story/open',{requestId:requestId(),revision:s.revision,questId,phase}),

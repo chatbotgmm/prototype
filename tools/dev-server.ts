@@ -25,8 +25,17 @@ for(let k=0;k<3;k++)for(const [kind,done] of [['처음',0],['중반',7]] as cons
   if(done)await t.db.storyAccount.create({data:{playerId:s.player.id,contentVersion:storyContent.version,darkGangBalance:done,darkGangLifetime:done,
     state:JSON.stringify({version:1,completed:Array.from({length:done},(_,i)=>'STORY_0'+(i+1)),accepted:{},scene:null,checkpoints:{},readScenes:[],fragments:{STORY_01_fragments:1,STORY_06_fragments:2},statueStage:2,hatched:false})}});
 }
+// 랭크 해 보기 계정(검토 화면 크기마다 하나): 방범대장 6000 XP(Lv.60 넘음) + Lv60 대원 둘
+const rankCodes:string[]=[];
+{const {withRewardSchedule,commanderPolicyFingerprint}=await import('../shared/src/index.js');
+  const cp=withRewardSchedule(JSON.parse(readFileSync(join(root,'data/commander-policy.json'),'utf8')),JSON.parse(readFileSync(join(root,'data/commander-reward-schedule.json'),'utf8')));
+  for(let k=0;k<3;k++){const c=String(400001+k);rankCodes.push(`랭크대장${k+1}: ${c}`);
+    const s=await seedTestPlayer(t.db,{name:`랭크대장${k+1}`,codes:[c],items:{potion:2},units:[{speciesId:'u60',level:60},{speciesId:'u59',level:60},{speciesId:'u20',level:20}]});
+    await t.db.onboardingState.create({data:{playerId:s.player.id,starterId:s.units[2].id,tutorialProof:'dev-seed',completedAt:new Date(),ticketId:`dev-rank-${k}`,selectedId:'u02'}});
+    await t.db.commanderAccount.create({data:{playerId:s.player.id,totalXp:6000n,policyVersion:cp.version,policyFingerprint:commanderPolicyFingerprint(cp)}});
+    await t.db.pvpParty.create({data:{playerId:s.player.id,ownedIds:JSON.stringify([s.units[0].id,s.units[1].id])}});}}
 const app=await buildApp(t.db,{root,secret:'local-dev-only-not-a-production-secret-0000'});
 await app.listen({host:'127.0.0.1',port});
-console.log(`시험 서버: http://127.0.0.1:${port}/proto/api/v1/health\n로그인 코드(한 번씩) — 바로 해 보기 「시험대장」: ${codes.join(' ')}\n처음부터 해 보기 — ${fresh.join(' / ')}\n이야기 해 보기 — ${storyCodes.join(' / ')}\n끄면(Ctrl+C) 임시 DB를 지워요.`);
+console.log(`시험 서버: http://127.0.0.1:${port}/proto/api/v1/health\n로그인 코드(한 번씩) — 바로 해 보기 「시험대장」: ${codes.join(' ')}\n처음부터 해 보기 — ${fresh.join(' / ')}\n이야기 해 보기 — ${storyCodes.join(' / ')}\n랭크 해 보기 — ${rankCodes.join(' / ')}\n끄면(Ctrl+C) 임시 DB를 지워요.`);
 const stop=()=>{void app.close().then(t.close).then(()=>process.exit(0));};
 process.once('SIGINT',stop);process.once('SIGTERM',stop);

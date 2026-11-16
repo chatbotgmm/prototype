@@ -14,10 +14,9 @@ type Village={worldUnits:number;assets:Record<string,Asset>;districts:{id:string
   districtScenery:{id:string;asset:string;x:number;worldWidth:number;depth:string;heightRatio:number;baseline:number;groundAnchor:number}[];
   decorations:{id:string;asset:string;heightRatio:number;surface:string;sourceX:number;sourceY:number}[]};
 // 지금 단계에서 열리는 기능. 나머지는 이름은 보이되 「다음 단계」로 안내(만들지 않은 기능을 된 것처럼 보이지 않게)
-// 일반전: 원본은 사람 대전(30초 뒤 AI). 대전은 7단계라 지금은 AI 연습 상대(PvE 훈련 조우)로 연결하고 화면에 밝힘
-const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('training'),recruit:()=>go('recruit'),collection:()=>go('collection'),craft:()=>go('craft'),
+const READY:Record<string,()=>void>={party:()=>go('party'),normal:()=>go('pvp',{mode:'normal'}),rank:()=>go('pvp',{mode:'rank'}),recruit:()=>go('recruit'),collection:()=>go('collection'),craft:()=>go('craft'),
   explore:()=>openStory({kind:'exploration'}),departure:()=>openStory({kind:'departure'}),'story-history':()=>openStory({kind:'history'})};
-const NOTE:Record<string,string>={normal:'지금은 AI 연습 상대'};
+const NOTE:Record<string,string>={normal:'30초 뒤 AI',rank:'방범대장 Lv.60'};
 
 let villageData:Village|null=null;
 export const village=():Scene=>{

@@ -65,19 +65,26 @@ for(const [name,w,h] of [['L',915,412],['W',1280,720],['S',780,360]]){
   for(let i=0;i<3;i++)await p.click(`.unit-card:not(.picked) .unit-pick:not([disabled]) >> nth=0`);await shot('07-party-picked');
   await p.click('.unit-info >> nth=0');await p.waitForSelector('.sheet .detail');await shot('08-unit-detail');await p.click('.sheet-close');
   await p.click('.save-btn');await p.waitForTimeout(300);
-  await p.goto(B+'#training');await p.reload();await p.waitForSelector('.enc-btn');await shot('09-training');
-  await p.click('.enc-btn >> nth=1');await p.waitForSelector('.cmd-grid');await shot('10-battle');
+  // 7-2단계: 일반전(원본: 사람 대전, 30초 동안 상대가 없으면 AI) → 대기 → 수락 → 전투 → 결과
+  await p.goto(B+'#pvp');await p.reload();await p.waitForSelector('.pvp-status');await shot('09-pvp-lobby');
+  await p.click('.pvp-status .btn-primary');await p.waitForSelector('.pvp-status >> text=상대를 찾는 중');await shot('09b-pvp-waiting');
+  await p.waitForSelector('.pvp-status >> text=대전 상대를 찾았어요',{timeout:45000});await shot('09c-pvp-accept');
+  await p.click('.pvp-actions .btn-primary');await p.waitForSelector('.cmd-grid',{timeout:15000});await shot('10-battle');
   await p.click('.cmd-grid .btn >> nth=1');await p.waitForSelector('.skill-btn');await shot('11-battle-skills');
   await p.click('.skill-btn >> nth=0');await p.waitForTimeout(200);await shot('12-battle-playing');
-  // 끝까지: 쓸 수 있는 가장 앞 버튼(공격 또는 교체)
   for(let t=0;t<80;t++){
-    await p.waitForFunction(()=>!document.querySelector('.command-panel button[disabled]')||document.querySelector('.finish'),null,{timeout:15000}).catch(()=>{});
+    await p.waitForFunction(()=>(!document.querySelector('.command-panel button[disabled]')&&!document.querySelector('.pvp-wait'))||document.querySelector('.finish'),null,{timeout:15000}).catch(()=>{});
     if(await p.$('.finish'))break;
-    if(await p.$('.cmd-grid'))await p.click('.cmd-grid .btn >> nth=0');else await p.click('.command-panel .skill-btn:not([disabled]) >> nth=0');
+    if(await p.$('.cmd-grid'))await p.click('.cmd-grid .btn >> nth=0');else if(await p.$('.command-panel .skill-btn:not([disabled])'))await p.click('.command-panel .skill-btn:not([disabled]) >> nth=0');
     await p.waitForTimeout(150);
   }
   await p.waitForSelector('.finish',{timeout:30000});await shot('13-battle-finish');
   await p.click('.finish .btn');await p.waitForSelector('.result-panel');await shot('14-result');
+  // 랭크 대기실(시험대장은 방범대장 Lv이 모자라 잠김)
+  await p.goto(B+'#village');await p.reload();await p.waitForSelector('.village-view');await p.waitForTimeout(600);
+  await p.click('.nav-btn >> nth=2');await p.waitForTimeout(600);
+  await p.evaluate(()=>document.querySelector('[data-click="training"]').click());await p.waitForSelector('.sheet');await shot('15-training-menu');
+  await p.click('.sheet .menu-btn >> nth=1');await p.waitForSelector('.pvp-status');await shot('16-rank-locked');
   // 5단계(바로 해 보기 계정): 조합 → 계승 고르기 → 성공, 도감, 내 갈매미
   await p.goto(B+'#craft');await p.reload();await p.waitForSelector('.recipe-row');await shot('20-craft');
   if(await p.$('.recipe-detail .btn-primary:not([disabled])')){
@@ -179,6 +186,16 @@ for(const [name,w,h] of [['L',915,412],['W',1280,720],['S',780,360]]){
   await m.evaluate(()=>document.querySelector('[data-click="harbor"]').click());await m.waitForSelector('.sheet');await m.click('.sheet .menu-btn >> nth=1');await m.waitForSelector('.story-panel');
   await m.waitForSelector('.story-choices .btn >> text=출항 준비');await typed(m);await m.click('.story-choices .btn >> text=출항 준비');await m.waitForSelector('.party-scene .unit-card');await m.click('.unit-card:not(.picked) .unit-pick:not([disabled]) >> nth=0');await m.click('.save-btn');await m.waitForSelector('.cmd-grid');await shot4('66-villain-battle');
   findings.push({label:`${name} 중반 계정 스크립트 오류`,issues:errs4});await c4.close();
+  // 랭크 가능 계정: 랭크 대기실 → 대기(사람끼리만이라 계속 기다림) → 취소
+  const c5=await b.newContext({viewport:{width:w,height:h},deviceScaleFactor:1});const r=await c5.newPage();const errs5=[];r.on('pageerror',e=>errs5.push(e.message));r.on('response',x=>{if(x.status()>=500)errs5.push(`${x.status()} ${x.url()}`);});
+  const shot5=async(n)=>{await r.evaluate(()=>document.fonts.ready);await r.waitForTimeout(500);await r.screenshot({path:`${out}/${name}-${n}.png`});await check(r,`${name} ${w}×${h} ${n}`);};
+  await r.goto(B);await r.waitForSelector('.title-start');await r.click('.title-start');await r.waitForSelector('.code-input');await r.fill('.code-input',String(400001+k));await r.click('.sheet-actions .btn-primary');await r.waitForSelector('.village-view');
+  await r.goto(B+'#village');await r.waitForSelector('.village-view');await r.waitForTimeout(500);await r.click('.nav-btn >> nth=2');await r.waitForTimeout(600);
+  await r.evaluate(()=>document.querySelector('[data-click="training"]').click());await r.waitForSelector('.sheet');await r.click('.sheet .menu-btn >> nth=1');await r.waitForSelector('.pvp-status');await shot5('80-rank-lobby');
+  await r.click('.team-preview .btn');await r.waitForSelector('.party-scene .unit-card');await shot5('81-pvp-party');
+  await r.click('.save-btn');await r.waitForSelector('.pvp-status');await r.click('.pvp-status .btn-primary');await r.waitForSelector('.pvp-status >> text=상대를 찾는 중');await r.waitForTimeout(1200);await shot5('82-rank-waiting');
+  await r.click('.pvp-status .btn >> text=매칭 취소');await r.waitForSelector('.pvp-status >> text=랭크게임');
+  findings.push({label:`${name} 랭크 계정 스크립트 오류`,issues:errs5});await c5.close();
 }
 await b.close();
 writeFileSync(`${out}/findings.json`,JSON.stringify(findings,null,1));

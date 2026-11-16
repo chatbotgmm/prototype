@@ -3,7 +3,7 @@
 import type {Prisma,PrismaClient} from '@prisma/client';
 import {
   validateCommanderPolicy,commanderPolicyFingerprint,commanderAccountState,commanderEmptyState,commanderEventReward,commanderEventFingerprint,commanderXpProgress,commanderSigned64Maximum,
-  rebirthPlan,publicDefenseSafe,type CommanderPolicy,type CommanderEvent,type CommanderState,type RebirthCharacter,
+  rebirthPlan,publicDefenseSafe,validatePresenceForfeitProof,type CommanderPolicy,type CommanderEvent,type CommanderState,type RebirthCharacter,
 } from '../../shared/src/index.js';
 import type {Content} from './content.js';
 import {apiFail} from './errors.js';
@@ -23,12 +23,14 @@ export async function readCommanderState(tx:Tx,playerId:string,policy:CommanderP
  * policy가 null이면(수락·출발 때 정책이 없던 의뢰·모험) 기록하지 않음.
  */
 export async function awardCommanderXp(tx:Prisma.TransactionClient,playerId:string,event:CommanderEvent,policy:CommanderPolicy|null):Promise<CommanderXpResult>{
-  const fingerprint=commanderEventFingerprint(event),where={playerId_eventKind_eventId:{playerId,eventKind:event.kind,eventId:event.eventId}};
+  // 대전 사건: 서버가 증명한 접속 끊김이면 그 값들을 지문에 넣음(원본 eventFingerprint)
+  const proof=event.terminationProof,presence=validatePresenceForfeitProof(proof)?[proof.version,proof.departedSide,proof.survivorSide,proof.graceStartedAt,proof.graceUntil,proof.monitorGeneration]:'unproven' as const;
+  const fingerprint=commanderEventFingerprint(event,presence),where={playerId_eventKind_eventId:{playerId,eventKind:event.kind,eventId:event.eventId}};
   const old=await tx.commanderXpLedger.findUnique({where});
   if(old){if(old.fingerprint!==fingerprint)return apiFail(409,'COMMANDER_EVENT_CONFLICT');return {...JSON.parse(old.result),xpAwarded:0,recordedXp:old.appliedXp,replayed:true};}
   if(policy===null)return {status:'POLICY_PENDING',reason:'COMMANDER_POLICY_PENDING',xpAwarded:0,recordedXp:0,requestedXp:0,level:null,totalXp:null,policyVersion:null,replayed:false,commander:commanderEmptyState()};
   validateCommanderPolicy(policy);
-  const reward=commanderEventReward(event,policy),policyFingerprint=commanderPolicyFingerprint(policy);
+  const reward=commanderEventReward(event,policy,validatePresenceForfeitProof as never),policyFingerprint=commanderPolicyFingerprint(policy);
   const account=await tx.commanderAccount.upsert({where:{playerId},create:{playerId,totalXp:0n,policyVersion:policy.version,policyFingerprint},update:{}});
   const before=commanderAccountState(account,policy);
   if(before.status==='POLICY_MISMATCH')return apiFail(503,'COMMANDER_ACCOUNT_POLICY_MISMATCH');if(before.status==='DATA_INVALID')return apiFail(503,'COMMANDER_XP_DATA_INVALID');
@@ -62,6 +64,8 @@ export class RebirthService{
   async confirm(playerId:string,b:{requestId:string;ownedId:string;catalogVersion:string;previewFingerprint:string}){
     return withReceipt(this.db,playerId,'rebirth',b.requestId,['confirm',b],async tx=>{
       const p=await this.plan(tx,playerId,b.ownedId);if(!p.eligible)return apiFail(409,p.reason);
+      // 원본: 대전 대기·대전 중(끝을 확인하지 않은 방 포함)이면 환생 불가
+      if(await tx.pvpQueue.findUnique({where:{playerId}})||await tx.pvpMatch.findFirst({where:{OR:[{player0Id:playerId},{player1Id:playerId}],status:{in:['ACCEPTING','ACTIVE','FINISHED']}}}))return apiFail(409,'BATTLE_ACTIVE');
       if(b.catalogVersion!==p.catalogVersion||b.previewFingerprint!==p.previewFingerprint)return apiFail(409,'PREVIEW_CHANGED');
       await tx.rebirthAccount.upsert({where:{playerId},create:{playerId},update:{}});
       const account=await tx.rebirthAccount.updateMany({where:{playerId,successes:p.successes},data:{successes:{increment:1}}});if(account.count!==1)return apiFail(409,'PREVIEW_CHANGED');

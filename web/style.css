@@ -321,3 +321,18 @@ body:has(.story-overlay) .hud-settings{visibility:hidden}
 
 /* 마을 메뉴: 작은 화면에서도 한 화면에 들어가게 마지막 두 버튼을 한 줄로 */
 .menu-row{display:flex;gap:.45em}.menu-row .menu-btn{flex:1}
+
+/* 7-2단계: 대전 대기실 */
+.pvp-scene{position:absolute;inset:0;display:flex;flex-direction:column;background:#0b1e2a center/cover}
+.pvp-body{flex:1;display:flex;gap:12px;padding:10px 12px;min-height:0}
+.pvp-status{flex:1;display:flex;flex-direction:column;gap:.45em;padding:.7em 1em;min-height:0}
+.pvp-status h2{color:var(--gold-edge);margin:0}
+.pvp-status p{margin:0}
+.pvp-status .btn{margin-top:auto}
+.pvp-actions{display:flex;gap:8px;margin-top:auto}.pvp-actions .btn{flex:1}
+.warn{color:#f0b47a}
+.pvp-wait{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;flex:1;text-align:center}
+/* 대전 결과: 출전 대원 경험치를 나란히(작은 화면에서도 버튼이 화면 안에) */
+.xp-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px}
+.xp-list .xp-row img{width:40px;height:40px}
+.xp-list .xp-row{padding:.25em .5em}
