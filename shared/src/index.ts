@@ -8,3 +8,4 @@ export * from './intel.js';
 export * from './acquisition.js';
 export * from './story.js';
 export * from './progression.js';
+export * from './pvp.js';
