@@ -9,6 +9,8 @@ const MESSAGES:Record<string,string>={
   ITEM_UNAVAILABLE:'아이템이 없어요.',INVALID_ITEM_TARGET:'그 대상에는 쓸 수 없어요.',NO_STATUS_TO_CLEANSE:'풀 상태 이상이 없어요.',
   FORCED_SWITCH_REQUIRED:'쓰러진 대원을 먼저 교체해 주세요.',STALE_REVISION:'화면이 오래됐어요. 다시 불러올게요.',BATTLE_FINISHED:'이미 끝난 전투예요.',
   INVALID_SWITCH:'교체할 수 없는 대원이에요.',SKILL_NOT_EQUIPPED:'쓸 수 없는 기술이에요.',NETWORK:'서버에 연결할 수 없어요.',
+  REINCARNATION_REQUIREMENTS_NOT_MET:'레벨이 모자라요.',REINCARNATION_GRADE_NOT_ALLOWED:'제한·초월·불멸·영원 등급만 환생할 수 있어요.',REINCARNATION_LIMIT:'환생은 5번까지예요.',
+  INSUFFICIENT_PEANUT:'땅콩이 모자라요.',PREVIEW_CHANGED:'정보가 바뀌었어요. 다시 확인해 주세요.',
   STORY_STALE_REVISION:'이야기 화면이 오래됐어요. 다시 불러올게요.',STORY_SCENE_LOCKED:'아직 들을 수 없는 이야기예요.',STORY_SCENE_ACTIVE:'읽던 이야기를 마치거나 닫은 뒤 열 수 있어요.',
   STORY_ACCEPT_NOT_READY:'이야기를 끝까지 들은 뒤 수락할 수 있어요.',STORY_ACCEPT_REQUIRED:'의뢰를 수락해 주세요.',STORY_OBJECTIVE_INCOMPLETE:'아직 의뢰를 마치지 않았어요.',
   STORY_QUEST_NOT_ACTIVE:'지금 출항할 수 있는 의뢰가 아니에요.',STORY_OBJECTIVE_AWAITING_RETURN:'이미 이겼어요. 모험에서 귀환하면 이야기가 이어져요.',STORY_BATTLE_ACTIVE:'끝나지 않은 스토리 전투가 있어요.',
@@ -63,10 +65,17 @@ export type StoryState={contentVersion:string;revision:number;testValues:boolean
 export type Adventure={adventureId:string;revision:number;status:'ACTIVE'|'RETURNED'|'LOST';activeBattleId:string|null;kind:'free'|'material'|'quest';questId:string|null;
   party:{ownedId:string;speciesId:string;name:string;level:number;hp:number;maxHp:number}[];pendingRewards:{xp:Record<string,number>};settlement:any};
 
+export type Commander={name:string;level:number|null;totalXp:string|null;nextLevelXp:string|null;xpToNext:string|null;maxLevel:number|null;status:string;testValues:boolean};
+export type RebirthCandidate={ownedId:string;speciesId:string;name:string;eligible:boolean;reason:string;requiredLevel?:number;costPeanut?:number;accountFreeAvailable?:boolean;previewFingerprint?:string;
+  preview:{beforeLevel:number;baselineLevelOneStats:Stats;afterLevelOneStats:Stats;next:{level:number;maxLevel:number;reincarnation:number}}|null};
+export type RebirthPreview={catalogVersion:string;peanut:number;candidates:RebirthCandidate[]};
 export const api={
   login:(code:string)=>call<{ok:true}>('POST','/auth/code',{code}),
   logout:()=>call<{ok:true}>('POST','/auth/logout',{}),
-  me:()=>call<{playerId:string;nickname:string|null;credits:number;items:{itemId:string;count:number}[];testBaseline:boolean}>('GET','/me'),
+  me:()=>call<{playerId:string;nickname:string|null;credits:number;peanut:number;items:{itemId:string;count:number}[];commander:Commander;testBaseline:boolean}>('GET','/me'),
+  commander:()=>call<Commander>('GET','/commander'),
+  rebirth:()=>call<RebirthPreview>('GET','/rebirth'),
+  rebirthConfirm:(c:RebirthCandidate,catalogVersion:string)=>call<RebirthCandidate&{completed:true;paidPeanut:number}>('POST','/rebirth/confirm',{requestId:requestId(),ownedId:c.ownedId,catalogVersion,previewFingerprint:c.previewFingerprint}),
   owned:()=>call<{units:OwnedUnit[]}>('GET','/owned'),
   ownedDetail:(id:string)=>call<{unit:OwnedDetail}>('GET',`/owned/${encodeURIComponent(id)}`).then(r=>r.unit),
   onboarding:()=>call<Onboarding>('GET','/onboarding'),

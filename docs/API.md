@@ -117,5 +117,11 @@
 - 전투 화면 값에 `adventureId`, `story:{questId,encounterId,kind}`가 붙고, 정산 `settlement.story = {darkGangAwarded, questId, objectiveProgressed}`.
 - 원본과 다른 점: 원본의 출발 예약(departure) 단계 없이 거래 하나로 처리해서 `pendingDeparture`는 늘 `null`. 방범대장 경험치는 7단계.
 
+## 방범대장·환생 (구현됨, 원본 progression/commander.ts·roster60-reincarnation.ts)
+- `GET /commander` → `{name:'방범대장', level, totalXp, nextLevelXp, xpToNext, maxLevel, status, testValues}`. `GET /me`, `GET /story`에도 `commander`가 붙음.
+- 지급: 의뢰 완료(귀환 장면 끝) 응답의 `commanderReward`, 모험 귀환 응답의 `settlement.commanderReward` = `{status, reason, xpAwarded, xpProgress, rewardScheduleVersion}`. 같은 사건은 한 번만.
+- `GET /rebirth` → `{catalogVersion, peanut, candidates:[{ownedId, speciesId, name, eligible, reason, requiredLevel, preview:{beforeLevel, baselineLevelOneStats, afterLevelOneStats, next}, costPeanut, accountFreeAvailable, previewFingerprint}]}`
+- `POST /rebirth/confirm` `{requestId, ownedId, catalogVersion, previewFingerprint}` → 환생 결과(`completed:true, paidPeanut`). 오류: `REINCARNATION_REQUIREMENTS_NOT_MET`·`REINCARNATION_GRADE_NOT_ALLOWED`·`INSUFFICIENT_PEANUT`·`PREVIEW_CHANGED`.
+
 ## 다음 단계에서 만들 묶음 (초안)
-- 일반전/랭크전, 환생, 방범대장, 상점/우편/일일
+- 일반전/랭크전(7-2), 상점/우편/일일(8)

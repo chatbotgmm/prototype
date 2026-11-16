@@ -87,8 +87,8 @@ export const village=():Scene=>{
       const jump=(x:number)=>{cancelAnimationFrame(raf);const target=x+1-view.clientWidth/U/2,start=camera;let d=target-start;d=((d+W/2)%W+W)%W-W/2;const t0=performance.now();
         const step=(t:number)=>{const k=Math.min(1,(t-t0)/450),e=1-Math.pow(1-k,3);camera=start+d*e;render();if(k<1)raf=requestAnimationFrame(step);};raf=requestAnimationFrame(step);};
       const hud=h('div',{class:'village-hud'},
-        h('button',{type:'button',class:'hud-profile panel',onclick:()=>go('owned'),'aria-label':'내 갈매미 보기'},h('b',{},me.nickname??'방범대장'),h('small',{},'내 갈매미 · 시험 계정')),
-        button('설정',()=>openSettings(),{cls:'hud-settings'}));
+        h('button',{type:'button',class:'hud-profile panel',onclick:()=>go('owned'),'aria-label':'내 갈매미 보기'},h('b',{},me.nickname??'방범대장'),h('small',{},`방범대장 Lv.${me.commander.level??'?'} · 내 갈매미`)),
+        button('메뉴',()=>openMenu(me),{cls:'hud-settings'}));
       const nav=h('nav',{class:'village-nav','aria-label':'구역 바로가기'},...data.districts.map(d=>button([h('b',{},d.title),h('small',{},d.nav)],()=>jump(d.x),{cls:'nav-btn'})));
       const guide=h('div',{class:'village-guide'});
       root.append(h('div',{class:'village-scene'},view,hud,nav,guide));
@@ -108,10 +108,16 @@ function openBuilding(b:Building){
   });
   sheet(b.name,h('div',{class:'building-menu'},h('p',{class:'muted'},b.sub),...items));
 }
-function openSettings(){
-  sheet('설정',h('div',{class:'building-menu'},
-    button('첫 화면으로',()=>{closeSheet();go('title');},{cls:'menu-btn'}),
-    button('로그아웃',async()=>{await api.logout().catch(()=>{});closeSheet();go('title');},{cls:'menu-btn'})));
+// 마을 메뉴(원본 NativeVillageHomeController.more: 출석·미션 · 내 정보 · 환생 안내 · 설정)
+function openMenu(me:{commander:{level:number|null;totalXp:string|null;nextLevelXp:string|null;xpToNext:string|null;status:string}}){
+  const c=me.commander;
+  sheet('마을 메뉴',h('div',{class:'building-menu'},
+    h('p',{class:'muted small'},`방범대장 Lv.${c.level??'?'} · 누적 XP ${c.totalXp??'?'}${c.xpToNext?` · 다음까지 ${c.xpToNext}`:c.status==='CURVE_EXTENSION_PENDING'?' · 다음 성장 구간 준비 중':''} · 시험 수치`),
+    button(['출석·미션',h('small',{class:'soon'},'다음 단계')],()=>toast('「출석·미션」은 8단계에서 만들어요.'),{cls:'menu-btn'}),
+    button('내 정보',()=>{closeSheet();go('owned');},{cls:'menu-btn'}),
+    button('환생 안내',()=>{closeSheet();go('rebirth');},{kind:'primary',cls:'menu-btn'}),
+    h('div',{class:'menu-row'},button('첫 화면으로',()=>{closeSheet();go('title');},{cls:'menu-btn'}),
+      button('로그아웃',async()=>{await api.logout().catch(()=>{});closeSheet();go('title');},{cls:'menu-btn'}))));
 }
 
 /** 첫 갈매미 흐름 안내(원본 순서: 시작 → 튜토리얼 전투 승리 → 커먼 선택지급권 → 고르기). 서버 상태만 보고 다음 할 일을 보여 줌. */

@@ -305,3 +305,19 @@ img{user-select:none;-webkit-user-drag:none}
 .drop{color:var(--gold-edge)}
 /* 이야기 창이 열려 있으면 뒤의 마을 「설정」 버튼을 숨김(창의 닫기 버튼과 겹쳐 보이지 않게) */
 body:has(.story-overlay) .hud-settings{visibility:hidden}
+
+/* 7단계: 환생 */
+.rebirth-scene{position:absolute;inset:0;display:flex;flex-direction:column;background:#0b1e2a}
+.rebirth-body{flex:1;display:flex;gap:10px;padding:10px 12px;min-height:0}
+.rebirth-art{width:34%;display:flex;flex-direction:column;align-items:center;padding:.5em;min-height:0}
+.rebirth-art img{flex:1;min-height:0;width:100%;object-fit:contain}
+.rebirth-info{flex:1;display:flex;flex-direction:column;gap:.35em;padding:.6em .9em;min-height:0;overflow:hidden}
+.rebirth-head{margin:0;color:var(--gold-edge)}
+.rebirth-info .stat-table td.up{color:var(--hp)}
+.rebirth-go{margin-top:auto}
+.rebirth-empty{margin:12px;padding:1em}
+.rebirth-scene .pager{display:flex;align-items:center;justify-content:center;gap:10px;padding:0 0 8px}
+.sheet-body p{white-space:pre-line}
+
+/* 마을 메뉴: 작은 화면에서도 한 화면에 들어가게 마지막 두 버튼을 한 줄로 */
+.menu-row{display:flex;gap:.45em}.menu-row .menu-btn{flex:1}

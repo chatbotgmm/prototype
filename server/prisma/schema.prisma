@@ -14,6 +14,7 @@ model Player {
   nickname  String?
   isTest    Boolean  @default(true)
   credits   Int      @default(0) // 지원서(모집 재화)
+  peanut    Int      @default(0) // 땅콩(환생 두 번째부터 1개, 상점은 8단계)
   revision  Int      @default(0)
   createdAt DateTime @default(now())
 
@@ -28,6 +29,9 @@ model Player {
   recruits   RecruitSession[]
   story      StoryAccount?
   adventures Adventure[]
+  commander  CommanderAccount?
+  commanderLedger CommanderXpLedger[]
+  rebirth    RebirthAccount?
 }
 
 model LoginCode {
@@ -172,4 +176,43 @@ model Adventure {
   player         Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@index([playerId, status])
+}
+
+// 방범대장 계정 경험치(원본 CommanderAccount). 개체 경험치와 따로 쌓임. 정책 버전·지문이 바뀌면 POLICY_MISMATCH.
+model CommanderAccount {
+  playerId          String @id
+  totalXp           BigInt @default(0)
+  policyVersion     String
+  policyFingerprint String
+  revision          Int    @default(0)
+  player            Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+// 방범대장 경험치 장부: 같은 사건은 한 번만(원본 CommanderXpLedger)
+model CommanderXpLedger {
+  playerId          String
+  eventKind         String
+  eventId           String
+  fingerprint       String
+  policyVersion     String
+  policyFingerprint String
+  outcome           String
+  reason            String
+  status            String
+  requestedXp       Int
+  appliedXp         Int
+  startingXp        BigInt
+  endingXp          BigInt
+  result            String
+  createdAt         DateTime @default(now())
+  player            Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([playerId, eventKind, eventId])
+}
+
+// 환생 성공 횟수(계정 첫 성공 무료 판정, 원본 Roster60RebirthAccount)
+model RebirthAccount {
+  playerId  String @id
+  successes Int    @default(0)
+  player    Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }

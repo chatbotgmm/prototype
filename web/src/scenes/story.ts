@@ -31,7 +31,7 @@ export function openStory(mode:StoryMode,onClose:()=>void=()=>{}){
   const portrait=(id:string)=>{art.replaceChildren();if(!id)return;
     const src=id==='hero'?unitArt('u01','front'):RESIDENT_ART[id]?asset(RESIDENT_ART[id]):null; // 원본: 주인공은 u01, 주민은 마을 그림. 다른 화자는 만들어 넣지 않음
     if(src)art.append(h('img',{src,alt:id==='hero'?'주인공 갈매미맨':name.textContent??''}));};
-  const send=async(f:()=>Promise<StoryState>)=>{busy=true;notice.textContent='저장하는 중…';try{state=await f();render();}catch(e){notice.textContent=message(e);if(String((e as any)?.code).includes('STALE')){state=await api.story();render();}}finally{busy=false;}};
+  const send=async(f:()=>Promise<StoryState>)=>{busy=true;notice.textContent='저장하는 중…';try{state=await f();render();const cr=(state as any).commanderReward;if(cr?.xpAwarded)toast(`의뢰 완료! 방범대장 XP +${cr.xpAwarded}${cr.xpProgress&&cr.xpProgress.after.level>cr.xpProgress.before.level?` · Lv.${cr.xpProgress.after.level}`:''}`);}catch(e){notice.textContent=message(e);if(String((e as any)?.code).includes('STALE')){state=await api.story();render();}}finally{busy=false;}};
   const openQuest=(questId:string,phase:'intro'|'return'|'replay')=>send(()=>api.storyOpen(state!,questId,phase));
   const leaveTo=(scene:string,params:unknown)=>{root.remove();go(scene,params);};
   const departTo=(d:Departure)=>leaveTo('party',{depart:d});

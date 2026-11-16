@@ -12,10 +12,11 @@ import {craft} from './scenes/craft.js';
 import {collection} from './scenes/collection.js';
 import {owned} from './scenes/owned.js';
 import {adventure} from './scenes/adventure.js';
+import {rebirth} from './scenes/rebirth.js';
 
 register('title',title);register('village',village);register('party',party);
 register('training',training);register('battle',battle);register('result',result);
-register('starter',starter);register('recruit',recruit);register('craft',craft);register('collection',collection);register('owned',owned);register('adventure',adventure);
+register('starter',starter);register('recruit',recruit);register('craft',craft);register('collection',collection);register('owned',owned);register('adventure',adventure);register('rebirth',rebirth);
 start(document.getElementById('game')!);
 const first=location.hash.slice(1);
-void go(['village','party','training','recruit','craft','collection','owned'].includes(first)?first:'title');
+void go(['village','party','training','recruit','craft','collection','owned','rebirth'].includes(first)?first:'title');

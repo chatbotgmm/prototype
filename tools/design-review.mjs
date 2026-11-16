@@ -155,6 +155,13 @@ for(const [name,w,h] of [['L',915,412],['W',1280,720],['S',780,360]]){
   await clickWorld('[data-click="archive"]');await s.waitForSelector('.sheet');await s.click('.sheet .menu-btn >> text=이야기 기록');await s.waitForSelector('.story-panel');await s.waitForTimeout(900);await shot3('61-history');
   await s.click('.story-close');await s.waitForTimeout(300);
   await clickWorld('[data-click="resident:blacksmith"]');await s.waitForSelector('.story-panel');await s.waitForTimeout(1500);await shot3('62-resident-blacksmith');
+  // 7-1단계: 마을 메뉴(방범대장 레벨) → 환생 안내 → 확인 → 환생 뒤
+  await s.goto(B+'#village');await s.reload();await s.waitForSelector('.village-view');await s.waitForTimeout(800);await shot3('70-village-commander');
+  await s.click('.hud-settings');await s.waitForSelector('.sheet');await shot3('71-village-menu');
+  await s.click('.sheet .menu-btn >> text=환생 안내');await s.waitForSelector('.rebirth-scene');await s.waitForTimeout(300);await shot3('72-rebirth');
+  await s.click('.rebirth-go');await s.waitForSelector('.sheet-actions');await shot3('73-rebirth-confirm');
+  await s.click('.sheet-actions .btn-primary');await s.waitForFunction(()=>document.querySelector('#toast.show'));await s.waitForTimeout(300);await shot3('74-rebirth-done');
+  if(await s.$('.pager .btn >> nth=1')){await s.click('.pager .btn >> nth=1');await s.waitForTimeout(200);await shot3('75-rebirth-not-eligible');}
   findings.push({label:`${name} 이야기 계정 스크립트 오류`,issues:errs3});await c3.close();
   // 중반 계정: 주민 부탁(상인) 장면 · 악당 의뢰 출항 → 악당 전투
   const c4=await b.newContext({viewport:{width:w,height:h},deviceScaleFactor:1});const m=await c4.newPage();const errs4=[];m.on('pageerror',e=>errs4.push(e.message));m.on('response',r=>{if(r.status()>=500)errs4.push(`${r.status()} ${r.url()}`);});

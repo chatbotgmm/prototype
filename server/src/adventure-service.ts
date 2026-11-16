@@ -1,6 +1,6 @@
 // 모험(탐험): 출발 → 전투 여러 번(보상은 쌓아 둠) → 정상 귀환 때 받음. 전멸하면 쌓인 보상을 잃고 돌아옴.
 // 원본: GMM110 src/roster60-adventure.ts (커밋 0b0fb8b5). 계산은 shared(경험치 조절·보상 검사), 여기는 저장·잠금·영수증만.
-// 원본과 다르게 한 것: 방범대장 경험치(귀환 100)는 7단계, 일일 미션(EXPEDITION) 집계는 8단계에서 연결해요. 귀환 승리 기록(commanderReturnEvidence)은 지금부터 원본과 같이 남겨요.
+// 방범대장 경험치: 출발 때 정책을 고정하고, 의뢰와 연결되지 않은 모험을 이기고 귀환하면 지급(원본 ADVENTURE_RETURN). 일일 미션(EXPEDITION) 집계는 8단계.
 import type {Prisma,PrismaClient} from '@prisma/client';
 import {
   growthAt,unitXpProgress,calculatePacedBattleXp,checkedAdventureRewards,publicDefenseSafe,adventureEscapePolicy,adventureCommanderEvidenceVersion,
@@ -10,9 +10,11 @@ import type {Content} from './content.js';
 import {apiFail} from './errors.js';
 import {withReceipt} from './receipts.js';
 import {isValidParty} from './battle-service.js';
+import {awardCommanderXp} from './progression-service.js';
+import type {CommanderPolicy} from '../../shared/src/index.js';
 
 export type AdventureMember={ownedId:string;startingXp:string;growth:GrowthPoint[];reincarnation:number;reincarnationXpPolicy?:ReincarnationXpPolicy};
-export type AdventureState={party:Fighter[];members:AdventureMember[];storyQuestId?:string;material?:boolean;commanderReturnEvidence:{version:string;wins:number}};
+export type AdventureState={party:Fighter[];members:AdventureMember[];storyQuestId?:string;material?:boolean;commanderPolicy?:CommanderPolicy|null;commanderReturnEvidence:{version:string;wins:number}};
 type Row={id:string;playerId:string;revision:number;status:string;activeBattleId:string|null;state:string;pendingRewards:string;settlement:string|null};
 
 /** 화면용 모험 상태(원본 adventureDto). 상대 방어 표는 넣지 않음. */
@@ -39,7 +41,7 @@ export class AdventureService{
       party.push(this.fighter(u));members.push({ownedId:id,startingXp:u.totalXp.toString(),growth:d.growth,reincarnation:u.reincarnation,reincarnationXpPolicy:d.reincarnationXpPolicy});
       const changed=await tx.owned.updateMany({where:{id,playerId,status:'AVAILABLE',locked:false,totalXp:u.totalXp},data:{status:'ADVENTURE'}});if(changed.count!==1)return apiFail(409,'UNIT_UNAVAILABLE');
     }
-    const state:AdventureState={party,members,...extra,commanderReturnEvidence:{version:adventureCommanderEvidenceVersion,wins:0}};
+    const state:AdventureState={party,members,...extra,commanderPolicy:structuredClone(this.content.commander),commanderReturnEvidence:{version:adventureCommanderEvidenceVersion,wins:0}};
     return tx.adventure.create({data:{playerId,catalogVersion:catalog.version,state:JSON.stringify(state),pendingRewards:JSON.stringify({xp:{}})}});
   }
   /** 정상 귀환: 쌓인 보상을 개체에 지급하고 모험 잠금을 푼다(원본 return). 전투 중에는 못 함. */
@@ -62,7 +64,10 @@ export class AdventureService{
         const changed=await tx.owned.updateMany({where:{id:m.ownedId,playerId,status:'ADVENTURE',totalXp:BigInt(m.startingXp)},data:{status:'AVAILABLE',totalXp:next}});
         if(changed.count!==1)return apiFail(409,'UNIT_STATE_CHANGED');
       }
-      const settlement={kind:'normal-return',rewards,winsThisRun:state.commanderReturnEvidence?.wins??0,...(Object.keys(xpProgressByOwnedId).length?{xpProgressByOwnedId}:{})};
+      const evidence=state.commanderReturnEvidence,verified=evidence?.version===adventureCommanderEvidenceVersion&&Number.isSafeInteger(evidence.wins)&&evidence.wins>=0;
+      const commanderReward=await awardCommanderXp(tx,playerId,{kind:'ADVENTURE_RETURN',eventId:row.id,outcome:'completed',reason:verified&&evidence.wins>0?'WIN_RETURN':verified?'NO_CLEAR_RETURN':'CLEAR_EVIDENCE_MISSING',
+        linkedQuestId:state.storyQuestId??null},state.commanderPolicy??null);
+      const settlement={kind:'normal-return',rewards,commanderReward,winsThisRun:state.commanderReturnEvidence?.wins??0,...(Object.keys(xpProgressByOwnedId).length?{xpProgressByOwnedId}:{})};
       const changed=await tx.adventure.updateMany({where:{id:row.id,playerId,revision:row.revision,status:'ACTIVE',activeBattleId:null},data:{status:'RETURNED',revision:{increment:1},pendingRewards:JSON.stringify({xp:{}}),settlement:JSON.stringify(settlement)}});
       if(changed.count!==1)return apiFail(409,'STALE_REVISION');
       await tx.player.update({where:{id:playerId},data:{revision:{increment:1}}});

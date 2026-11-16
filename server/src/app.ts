@@ -10,6 +10,7 @@ import {BattleService,isValidParty,partyPolicy} from './battle-service.js';
 import {AcquisitionService} from './acquisition-service.js';
 import {AdventureService} from './adventure-service.js';
 import {StoryService} from './story-service.js';
+import {RebirthService,readCommanderState} from './progression-service.js';
 import {serial} from './receipts.js';
 import {registerStatic} from './static.js';
 
@@ -17,7 +18,7 @@ export type AppOptions={root:string;secret:string;basePath?:string;log?:boolean;
 export async function buildApp(db:PrismaClient,opt:AppOptions){
   const base=(opt.basePath??'/proto').replace(/\/$/,''),api=`${base}/api/v1`,now=opt.now??Date.now;
   const content=loadContent(opt.root),battles=new BattleService(db,content),acquisition=new AcquisitionService(db,content,opt.roll),sessions=sessionSigner(opt.secret);
-  const adventures=new AdventureService(db,content,u=>battles.ownedFighter(u)),story=new StoryService(db,content,battles,adventures);
+  const adventures=new AdventureService(db,content,u=>battles.ownedFighter(u)),story=new StoryService(db,content,battles,adventures),rebirth=new RebirthService(db,content);
   const app=Fastify({logger:opt.log??false,bodyLimit:8192});
   app.setErrorHandler((e,_req,reply)=>{
     if(e instanceof ApiError)return reply.code(e.status).send({error:e.code});
@@ -59,8 +60,7 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
   route('GET','/me',async id=>{
     const p=await db.player.findUniqueOrThrow({where:{id}});
     const items=await db.playerItem.findMany({where:{playerId:id}});
-    // 방범대장 레벨은 7단계에서 연결. 그 전에는 정책 미연결로 표시(값을 지어내지 않음)
-    return {playerId:p.id,nickname:p.nickname,credits:p.credits,items:items.map(i=>({itemId:i.itemId,count:i.count})),commander:{level:null,reason:'COMMANDER_NOT_CONNECTED'},testBaseline:content.catalog.productionBalanceApproved===false};
+    return {playerId:p.id,nickname:p.nickname,credits:p.credits,items:items.map(i=>({itemId:i.itemId,count:i.count})),commander:await readCommanderState(db,id,content.commander),peanut:p.peanut,testBaseline:content.catalog.productionBalanceApproved===false};
   });
 
   // ── 보유 개체(원본 roster60-owned.ts 모양: 목록은 레벨 높은 순, 재료로 쓴 개체 제외)
@@ -138,5 +138,10 @@ export async function buildApp(db:PrismaClient,opt:AppOptions){
   route('POST','/story/close',async(id,req)=>story.close(id,z.object({requestId,revision}).strict().parse(req.body)));
   route('POST','/story/battle',async(id,req)=>story.createBattle(id,z.object({requestId,questId,ownedIds,adventureId:adventureId.optional()}).strict().parse(req.body)));
   route('POST','/story/material-battle',async(id,req)=>story.createBattle(id,z.object({requestId,encounterId:z.string().min(1).max(100),ownedIds,adventureId:adventureId.optional()}).strict().parse(req.body)));
+
+  // ── 방범대장·환생(원본 commander, reincarnation/*)
+  route('GET','/commander',async id=>readCommanderState(db,id,content.commander));
+  route('GET','/rebirth',async id=>rebirth.preview(id));
+  route('POST','/rebirth/confirm',async(id,req)=>rebirth.confirm(id,z.object({requestId,ownedId:z.string().min(1).max(100),catalogVersion:z.string().min(1).max(100),previewFingerprint:z.string().regex(/^[a-f0-9]{64}$/)}).strict().parse(req.body)));
   return app;
 }

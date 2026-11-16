@@ -18,7 +18,7 @@ export type StoryContent={version:string;productionBalanceApproved:false;chapter
   policy:{darkGangPerWin:number;maxBalance:number;mainLifetimeGates:Record<string,number>;thresholdsAreTestValues:true}};
 export type StoryUnitXpPolicy={approved:true;version:string;profileKind:'user-authorized-test-baseline';productionBalanceApproved:false;testValues:true;catalogVersion:string;contentVersion:string;scope:'accepted-quest-battles-only';
   distribution:'equal-actually-entered';loss:'zero-existing-story';surrender:'zero';draw:'zero';capOverflow:'discard-overflow';questCompletionUnitXp:'none';rewards:Record<string,{winXp:number;lossXp:0}>;notes?:string[]};
-export type AcceptedQuest={token:string;wins:number;adventureId?:string;battles:string[];unitXpPolicy?:StoryUnitXpPolicy|null};
+export type AcceptedQuest={token:string;wins:number;adventureId?:string;battles:string[];unitXpPolicy?:StoryUnitXpPolicy|null;/** 수락 때 고정한 방범대장 정책(서버가 넣음, 원본과 같음) */commanderPolicy?:unknown};
 export type SceneProgress={questId:string;phase:'intro'|'return'|'replay';cursor:number};
 export type StoryProgress={version:1;completed:string[];accepted:Record<string,AcceptedQuest>;scene:SceneProgress|null;checkpoints:Record<string,number>;readScenes:string[];fragments:Record<string,number>;statueStage:number;hatched:boolean;materialAdventureId?:string};
 export type QuestStatus='LOCKED'|'AVAILABLE'|'ACTIVE'|'READY'|'COMPLETED';

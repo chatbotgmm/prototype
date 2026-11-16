@@ -3,7 +3,7 @@
 // 원본과 다르게 한 것(같은 결과, 단순한 방법):
 //  - 원본은 출항을 「출발 예약(departure) → 모험 시작 → 연결 → 전투 만들기」 여러 거래로 나누고, 중간에 끊겨도 이어 가도록 예약을 저장했어요.
 //    새 서버는 DB 한 대·플레이어별 직렬 처리라 이 모두를 거래 하나로 처리해요. 그래서 pendingDeparture는 늘 null이고, revision이 오르는 횟수가 원본과 달라요.
-//  - 방범대장 경험치(의뢰 완료 200·450)는 7단계에서 연결해요.
+//  - 방범대장 경험치: 수락 때 정책을 고정하고, 귀환 장면을 끝내 의뢰를 완료하면 지급(원본과 같음).
 import {randomUUID} from 'node:crypto';
 import type {Prisma,PrismaClient} from '@prisma/client';
 import {
@@ -15,6 +15,8 @@ import {apiFail} from './errors.js';
 import {withReceipt} from './receipts.js';
 import type {BattleService} from './battle-service.js';
 import type {AdventureService} from './adventure-service.js';
+import {awardCommanderXp,readCommanderState,type CommanderXpResult} from './progression-service.js';
+import type {CommanderPolicy} from '../../shared/src/index.js';
 
 type Tx=Prisma.TransactionClient;
 type Account={playerId:string;contentVersion:string;state:string;darkGangBalance:number;darkGangLifetime:number;revision:number};
@@ -38,32 +40,41 @@ export class StoryService{
     if(a.contentVersion!==this.story.content.version)return apiFail(409,'STORY_CONTENT_CHANGED');
     const p=JSON.parse(a.state) as StoryProgress,l=await this.lookups(tx,a,p);
     const material=p.materialAdventureId?l.runs.find(r=>r.id===p.materialAdventureId&&r.status==='ACTIVE'):undefined;
-    return storyView(this.story.content,p,{revision:a.revision,contentVersion:a.contentVersion,lifetime:a.darkGangLifetime,adventureStatus:l.adventureStatus,latestBattle:l.latestBattle,
-      materialAdventure:material?{adventureId:material.id,status:material.status,activeBattleId:material.activeBattleId,revision:material.revision}:null,speakerNames:this.story.speakerNames});
+    const commander=await readCommanderState(tx,a.playerId,this.content.commander);
+    return {...storyView(this.story.content,p,{revision:a.revision,contentVersion:a.contentVersion,lifetime:a.darkGangLifetime,adventureStatus:l.adventureStatus,latestBattle:l.latestBattle,
+      materialAdventure:material?{adventureId:material.id,status:material.status,activeBattleId:material.activeBattleId,revision:material.revision}:null,speakerNames:this.story.speakerNames}),commander};
   }
   async state(playerId:string){return this.view(this.db,await this.account(this.db,playerId));}
   /** 흑화 재료 잔액(원본 materials). 쓰는 곳(강화)은 원본에서도 아직 없음. */
   async materials(playerId:string){const a=await this.account(this.db,playerId);
     return {currency:'dark-shrimp-gang',name:'어둠의 새우Gang',balance:a.darkGangBalance,lifetimeEarned:a.darkGangLifetime,enhancement:{enabled:false,eligibilityPolicy:'PENDING',automaticConsumption:false}};}
-  private mutate(playerId:string,b:{requestId:string;revision:number},payload:unknown,run:(p:StoryProgress,statusOf:(q:StoryQuest)=>ReturnType<typeof questStatus>,tx:Tx)=>void){
+  private mutate(playerId:string,b:{requestId:string;revision:number},payload:unknown,run:(p:StoryProgress,statusOf:(q:StoryQuest)=>ReturnType<typeof questStatus>,tx:Tx)=>void|Promise<CommanderXpResult|void>){
     return withReceipt(this.db,playerId,'story',b.requestId,payload,async tx=>{
       const a=await this.account(tx,playerId);
       if(a.revision!==b.revision)return apiFail(409,'STORY_STALE_REVISION');if(a.contentVersion!==this.story.content.version)return apiFail(409,'STORY_CONTENT_CHANGED');
       const p=JSON.parse(a.state) as StoryProgress,l=await this.lookups(tx,a,p);
-      run(p,q=>questStatus(this.story.content,p,a.darkGangLifetime,q,l.adventureStatus),tx);
+      const commanderReward=await run(p,q=>questStatus(this.story.content,p,a.darkGangLifetime,q,l.adventureStatus),tx);
       const changed=await tx.storyAccount.updateMany({where:{playerId,revision:a.revision},data:{state:JSON.stringify(p),revision:{increment:1}}});
       if(changed.count!==1)return apiFail(409,'STORY_STALE_REVISION');
-      return this.view(tx,{...a,state:JSON.stringify(p),revision:a.revision+1});
+      return {...await this.view(tx,{...a,state:JSON.stringify(p),revision:a.revision+1}),...(commanderReward?{commanderReward}:{})};
     });
   }
   open(playerId:string,b:{requestId:string;revision:number;questId:string;phase:SceneProgress['phase']}){
     return this.mutate(playerId,b,['open',b.questId,b.phase,b.revision],(p,statusOf)=>storyOpen(this.story.content,p,statusOf(findQuest(this.story.content,b.questId)),b.questId,b.phase));
   }
   advance(playerId:string,b:{requestId:string;revision:number;cursor:number}){
-    return this.mutate(playerId,b,['advance',b.cursor,b.revision],(p,statusOf)=>{storyAdvance(this.story.content,p,b.cursor,statusOf);});
+    return this.mutate(playerId,b,['advance',b.cursor,b.revision],async(p,statusOf,tx)=>{
+      // 완료되면 accepted가 지워지므로 수락 때 고정한 정책을 먼저 꺼내 둠
+      const questId=p.scene?.questId,pin=questId?(p.accepted[questId]?.commanderPolicy??null) as CommanderPolicy|null:null;
+      const {completedQuestId}=storyAdvance(this.story.content,p,b.cursor,statusOf);
+      if(!completedQuestId)return;
+      const q=findQuest(this.story.content,completedQuestId);
+      return awardCommanderXp(tx,playerId,{kind:q.kind==='resident'?'RESIDENT_QUEST':'STORY_QUEST',eventId:this.story.content.version+':'+q.id,outcome:'completed',linkedQuestId:q.id},pin);
+    });
   }
   accept(playerId:string,b:{requestId:string;revision:number;questId:string}){
-    return this.mutate(playerId,b,['accept',b.questId,b.revision],(p,statusOf)=>storyAccept(this.story.content,p,statusOf(findQuest(this.story.content,b.questId)),b.questId,randomUUID(),this.story.unitXpPolicy));
+    return this.mutate(playerId,b,['accept',b.questId,b.revision],(p,statusOf)=>{storyAccept(this.story.content,p,statusOf(findQuest(this.story.content,b.questId)),b.questId,randomUUID(),this.story.unitXpPolicy);
+      p.accepted[b.questId].commanderPolicy=structuredClone(this.content.commander);});
   }
   close(playerId:string,b:{requestId:string;revision:number}){return this.mutate(playerId,b,['close',b.revision],p=>storyClose(p));}
 

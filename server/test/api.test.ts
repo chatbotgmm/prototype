@@ -34,7 +34,7 @@ describe('계정',()=>{
     expect(r.status).toBe(200);token=r.body.token;expect(token).toBeTruthy();
     expect(String(r.headers['set-cookie'])).toContain('gmm_proto=');
     expect((await call('POST','/auth/code',{code:'111111'})).body.error).toBe('LOGIN_CODE_INVALID');
-    const me=await call('GET','/me');expect(me.body.nickname).toBe('시험대장');expect(me.body.commander.level).toBeNull();expect(me.body.testBaseline).toBe(true);
+    const me=await call('GET','/me');expect(me.body.nickname).toBe('시험대장');expect(me.body.commander.level).toBe(1);expect(me.body.commander.totalXp).toBe('0'); // 방범대장: 시험 정책, 0부터(예전 기록 되살리지 않음)expect(me.body.testBaseline).toBe(true);
   });
 });
 

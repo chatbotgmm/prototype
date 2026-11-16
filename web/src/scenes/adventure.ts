@@ -33,7 +33,7 @@ export const adventure=():Scene=>({
       // 의뢰 모험에서 더 싸울 수 있는지: 서버가 준 canDepart(이긴 수가 모자라고 전투 중이 아님)
       const canFight=active&&!a.activeBattleId&&a.party.some(f=>f.hp>0)&&(a.kind!=='quest'||!!quest?.canDepart)&&(a.kind!=='material'||!!story?.adventures.length);
       const head=active?(a.activeBattleId?'전투가 진행 중이에요.':a.kind==='quest'&&!quest?.canDepart?'의뢰 목표를 달성했어요. 귀환하면 이야기가 이어져요.':'계속 싸우거나 정상 귀환할 수 있어요. 보상은 귀환할 때 받아요.')
-        :a.status==='RETURNED'?'정상 귀환했어요. 쌓인 보상을 받았어요.':'전멸해서 이번 모험의 미정산 보상을 잃고 돌아왔어요.';
+        :a.status==='RETURNED'?`정상 귀환했어요. 쌓인 보상을 받았어요.${s?.commanderReward?.xpAwarded?` 방범대장 XP +${s.commanderReward.xpAwarded}`:''}`:'전멸해서 이번 모험의 미정산 보상을 잃고 돌아왔어요.';
       scene.replaceChildren(
         h('header',{class:'top-bar'},button('마을',()=>go('village'),{icon:'icon-back'}),h('h1',{},title),h('span',{class:'muted top-note'},active?'모험 중':a.status==='RETURNED'?'귀환 완료':'전멸 귀환')),
         h('div',{class:'adventure-body'},

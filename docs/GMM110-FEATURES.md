@@ -45,7 +45,7 @@
 - 개체 레벨 상한: 환생 전 **60**, 환생 뒤 **99**(`rosterMaxLevel`).
 - 환생: 개체를 레벨 1로 되돌리고, 체력·MP·내구에 보너스를 더해요(`rebirthPolicy: hp-mp-durability-additive-v1`). 환생 뒤 레벨 2~60까지는 필요 경험치가 **70%**예요(`confirmedReincarnationXpPolicy`, 코드에 "확정"으로 적힘). 자동 환생은 없어요.
 - 상한을 넘은 경험치는 버려요. 다른 개체로 옮기지 않아요(`CONFIRMED-POLICIES`).
-- **방범대장 성장**: 개체 경험치와 따로 쌓여요(`src/progression/commander.ts`, `CommanderAccount`·`CommanderXpLedger`). 시험 지급량: 스토리 의뢰 200 · 주민 의뢰 450 · 독립 모험 귀환 100 · 일반전 승 100 / 패 50(`commander-policy.json`의 `rewards`).
+- **방범대장 성장**: 개체 경험치와 따로 쌓여요(`src/progression/commander.ts`, `CommanderAccount`·`CommanderXpLedger`). 시험 지급량은 `commander-policy.json`의 `rewards`(스토리 의뢰 200 · 주민 의뢰 450 · 독립 모험 귀환 100 · 일반전 승 100 / 패 50)를 `commander-reward-schedule.json`(`commander-reward-uplift-20261030-v1`)이 덮어써서 실제로는 **250 · 600 · 150 · 150 / 75**예요(`commanderPolicyReader`가 두 파일을 합치고 `commanderEventReward`가 일정 값을 먼저 씀). 7단계 비교 시험에서 확인했어요.
 - 조합 기술 계승: 조합할 때 재료가 가진 해금 기술 중 하나를 결과 개체의 한 칸과 바꿀 수 있어요(`docs/CRAFT-SKILL-INHERITANCE-20261028.md`).
 - 임시 갈매미 레벨 계승: 임시로 빌려준 갈매미의 레벨을, 다음에 처음 얻는 같은 종류 영구 개체에 이어 줘요(사용자 확정 — `docs/STARTER-LEVEL-INHERITANCE.md`).
 
